@@ -1,0 +1,333 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1794386569,
+        "narHash": "sha256-x9sADJvoVG0L6RejZB+/BB4YiGZFBZrfTlhF4uBq1tQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "ps1-tests": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1678048532,
+        "narHash": "sha256-XMuQVqkZ7cTg10h/5IDX4TGNBmc3ks6rtbrnW4PDVM0=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "f727802fead11f1daa7549285548392ef87749cb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "f727802fead11f1daa7549285548392ef87749cb",
+        "type": "github"
+      }
+    },
+    "ps1-tests-42352ae": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1575383943,
+        "narHash": "sha256-Rf89EdDb5BX6x9TABj4ZFHTdTi1nvVKUBwHqkUwzgu8=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "42352ae717a55a50bc1cd581946fab8ff95b0441",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "42352ae717a55a50bc1cd581946fab8ff95b0441",
+        "type": "github"
+      }
+    },
+    "ps1-tests-5031fcb": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1580932479,
+        "narHash": "sha256-jhYYQU0lj1SbOoOxw6gcO7DMtq1LtNnPfX59QfgJqtA=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "5031fcb40747075b43f2c6253dc87be33df09ad6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "5031fcb40747075b43f2c6253dc87be33df09ad6",
+        "type": "github"
+      }
+    },
+    "ps1-tests-5f73d61": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1619128384,
+        "narHash": "sha256-rtmGxSATZDmQ0pgk9a0SAJAb8pku2HimuomNL4+M3kg=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "5f73d61b27a8d51269b54dde1c456d2d2f7dc865",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "5f73d61b27a8d51269b54dde1c456d2d2f7dc865",
+        "type": "github"
+      }
+    },
+    "ps1-tests-603a536": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1569161804,
+        "narHash": "sha256-keZh+Q955jkJi+wHzaJbpq0evAAGq/VzLFuVHCR5HY4=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "603a53630e20d787b1dc2380b34fa7a391189d6e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "603a53630e20d787b1dc2380b34fa7a391189d6e",
+        "type": "github"
+      }
+    },
+    "ps1-tests-78ab568": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1610593760,
+        "narHash": "sha256-iHDYQY0zMwEjZDDDd2/8ZGloytXP/ZmglhVMIjm1o74=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "78ab568408bacfad61eab6a487235be2d0a8c149",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "78ab568408bacfad61eab6a487235be2d0a8c149",
+        "type": "github"
+      }
+    },
+    "ps1-tests-79dfb13": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1575305809,
+        "narHash": "sha256-p/uhJlD0s6C0oUu0pDYp0DaRlYoge6l49HgpJlWjqTc=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "79dfb131b5c3694a75cbecb64a7b8f2ef29a9ef9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "79dfb131b5c3694a75cbecb64a7b8f2ef29a9ef9",
+        "type": "github"
+      }
+    },
+    "ps1-tests-7adb9f0": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1613935418,
+        "narHash": "sha256-Uc6Ymjar11271QGX7MCTy+pEOaOl6kSiIzM/aTwROWE=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "7adb9f019ff4da2a32959f0e0ecd31fc66a223ed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "7adb9f019ff4da2a32959f0e0ecd31fc66a223ed",
+        "type": "github"
+      }
+    },
+    "ps1-tests-86a6f3c": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1570373116,
+        "narHash": "sha256-4+eEp7naUmqMDLb00j/NnFiGioZ8FULCSL1nx/eD89o=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "86a6f3c4b107277d3a1e9f094e4849d7593b68df",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "86a6f3c4b107277d3a1e9f094e4849d7593b68df",
+        "type": "github"
+      }
+    },
+    "ps1-tests-93568c5": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1585524541,
+        "narHash": "sha256-U4zIv69MOD6EtWG+WKItIFNhEqChgKulaX9/MDkUlwg=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "93568c5589e58b1fe442c854728324994bd30426",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "93568c5589e58b1fe442c854728324994bd30426",
+        "type": "github"
+      }
+    },
+    "ps1-tests-b0a94a8": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1569849323,
+        "narHash": "sha256-1rGsnyp29FmilG0LL9qpvcG5kJm6851INBTLHazGPzY=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "b0a94a82a138a215617527496385ed1b5ffc4ab5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "b0a94a82a138a215617527496385ed1b5ffc4ab5",
+        "type": "github"
+      }
+    },
+    "ps1-tests-d190785": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1575054458,
+        "narHash": "sha256-jJgdCEdJOuBAz92oDH/HsEm8iOR/HkOgCjovHVk4s2I=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "d190785c9d3c6eba8c956b926ab6da4c2f14fd88",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "d190785c9d3c6eba8c956b926ab6da4c2f14fd88",
+        "type": "github"
+      }
+    },
+    "ps1-tests-d1a63ee": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1569871334,
+        "narHash": "sha256-8lVrBeDrM27v27aPdeb4CW3l9N13zJn3SDETtv7mW8Q=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "d1a63eec6a0cbcefa6bb22c2500907e6281f6eee",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "d1a63eec6a0cbcefa6bb22c2500907e6281f6eee",
+        "type": "github"
+      }
+    },
+    "ps1-tests-da6b472": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1569344189,
+        "narHash": "sha256-Vj97PeoErJm02onFH5ED9fc6zqKcX7Wm77nRbBwAyxc=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "da6b472d023df0ce4dd2c3a71b5c1d7a1bef50b7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "da6b472d023df0ce4dd2c3a71b5c1d7a1bef50b7",
+        "type": "github"
+      }
+    },
+    "ps1-tests-eb10e45": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1611507172,
+        "narHash": "sha256-IclzwSkEgI/uyhwZ2v0oxNa0TYamimMlRhtJeqb21bk=",
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "eb10e4577ad58d87e1ca4f51d19cb7eb1926bf44",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JaCzekanski",
+        "repo": "ps1-tests",
+        "rev": "eb10e4577ad58d87e1ca4f51d19cb7eb1926bf44",
+        "type": "github"
+      }
+    },
+    "psn00bsdk": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1603679356,
+        "narHash": "sha256-UF0aGLj+UU6IyzUls38YsoHSZjAgjQ82ldhilp6fi1o=",
+        "owner": "Lameguy64",
+        "repo": "PSn00bSDK",
+        "rev": "b0659ad85b7aa6e74d2c3eac29281636a0c2bc5e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Lameguy64",
+        "repo": "PSn00bSDK",
+        "rev": "b0659ad85b7aa6e74d2c3eac29281636a0c2bc5e",
+        "type": "github"
+      }
+    },
+    "psxstack": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793225256,
+        "narHash": "sha256-Sue9BPgLKiYUTNzM/k3i46o+xgH+NE1rpOwke4dh/BU=",
+        "owner": "gascarcella",
+        "repo": "psxstack",
+        "rev": "40071978ec43f76757a5e7fc5c89ee680bccd3bb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "gascarcella",
+        "repo": "psxstack",
+        "rev": "40071978ec43f76757a5e7fc5c89ee680bccd3bb",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "ps1-tests": "ps1-tests",
+        "ps1-tests-42352ae": "ps1-tests-42352ae",
+        "ps1-tests-5031fcb": "ps1-tests-5031fcb",
+        "ps1-tests-5f73d61": "ps1-tests-5f73d61",
+        "ps1-tests-603a536": "ps1-tests-603a536",
+        "ps1-tests-78ab568": "ps1-tests-78ab568",
+        "ps1-tests-79dfb13": "ps1-tests-79dfb13",
+        "ps1-tests-7adb9f0": "ps1-tests-7adb9f0",
+        "ps1-tests-86a6f3c": "ps1-tests-86a6f3c",
+        "ps1-tests-93568c5": "ps1-tests-93568c5",
+        "ps1-tests-b0a94a8": "ps1-tests-b0a94a8",
+        "ps1-tests-d190785": "ps1-tests-d190785",
+        "ps1-tests-d1a63ee": "ps1-tests-d1a63ee",
+        "ps1-tests-da6b472": "ps1-tests-da6b472",
+        "ps1-tests-eb10e45": "ps1-tests-eb10e45",
+        "psn00bsdk": "psn00bsdk",
+        "psxstack": "psxstack"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

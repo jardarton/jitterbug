@@ -1,0 +1,60 @@
+# determinism_threads's hashes, the one expected value for every build and
+# every thread count (docs/determinism.md): tests/determinism_threads.c says
+# what each case draws and what its hash covers. Each case runs at 1, 2, 3,
+# 4, 8 and 16 threads and with the count changing as it draws; every run
+# must give the hash here.
+#
+# To re-record after a deliberate change to what is drawn (never to make a
+# thread count agree), run
+#   build/tests/test_determinism_threads --record tests/determinism_threads.txt tests/seed/*.jbt
+# and put the lines it prints in place of those below.
+#
+# name scale options hash
+random0      1 off 94163157e913f5fb
+random0      1 on  b098fe1b19d27dae
+random0      2 off 559ac10ef8aa34e7
+random0      2 on  001d77eeda31bcc8
+random0      3 off 75e179c55c3dd054
+random0      3 on  44735368f48988bf
+random1      1 off 6733d3a3dea9804d
+random1      1 on  7a68beb1f2aa2d4f
+random1      2 off 886e502edac0a00b
+random1      2 on  8acde0523a7592cd
+random1      3 off 75941be084c8dc5c
+random1      3 on  14b68a7af0686e15
+random2      1 off 1db1d7a57982e486
+random2      1 on  a3506dee80e0862b
+random2      2 off 09bef6df8c904d5a
+random2      2 on  b94ba5f7af3d0df0
+random2      3 off 384192b227421689
+random2      3 on  ee50e7c1ab4ce2bf
+random3      1 off 6291ef206cc13761
+random3      1 on  a4e8c5aebdc54535
+random3      2 off 78a48c4df62d79e9
+random3      2 on  9b28a14997ba4d31
+random3      3 off 7d26166e1655689e
+random3      3 on  1ecbcc13e2e48cb6
+flood        1 off 1697cc09f33a1705
+flood        2 off ebec20a493116158
+flood        3 off b47f2c36fce4e5b6
+seed         1 off 7305149cbebcdc82
+seed         2 off 9e0688fdf55db0b1
+seed         3 off ef3e6b167d0120bd
+first-light  1 off f4fd14a6cac7fac1
+first-light  1 on  1f6799d59b4fcb1e
+first-light  2 off cc2329b28efacb9b
+first-light  2 on  6f916e608e103d5e
+first-light  3 off afcdf4c5243faa5b
+first-light  3 on  862c4f6d4c50ea86
+heavy        1 off 6aa7924cd8574940
+heavy        1 on  259201722f625eab
+heavy        2 off b1dba3280b4c782e
+heavy        2 on  61d26ef5134ac6f1
+heavy        3 off 00c6167d046f9dab
+heavy        3 on  6b9289799eca5b25
+fill         1 off 993a41cbe8fa3bc8
+fill         1 on  10f4f00a89d8b9a2
+fill         2 off b2adb0b63a5ecce5
+fill         2 on  5c31c5e5fab2d2bb
+fill         3 off 51fc8554b119ffd7
+fill         3 on  dc3307f712df691f

@@ -1,0 +1,8 @@
+strict   a64f666659ef3546
+bounded  d85b477b486002d8
+all      5ebd5a269a6ace3c
+xflip    869b868a42b7d7d8
+lineties 9c7ed2dead82dd1c
+lineg    6554799b6a9cc966
+quad     bc9b42348ada759d
+v        85636ae63c2b25ed

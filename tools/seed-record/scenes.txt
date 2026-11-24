@@ -1,0 +1,31 @@
+# The seed scenes, in order: one trace tests/seed/NAME.jbt a line. The
+# re-blessing tools (measure.sh, rebless.sh, audit/audit.sh, through
+# scenes.sh) and tests/CMakeLists.txt require exactly these traces.
+00-fill_convention
+01-shared_edges
+02-gouraud_and_dither
+03-textures
+04-texture_window
+05-semi_transparency
+06-mask_clip_offset
+07-lines
+08-transfers_and_order
+09-display_24bit
+10-scene
+11-hires_skip_1x
+12-hires_coverage
+13-hires_sprites_and_transfers
+14-hires_render_to_texture
+15-hires_dither
+16-hires_precise
+17-hires_display
+18-hires_coverage_3t
+19-hires_render_to_texture_3t
+20-hires_threads
+21-persp_floor_1x
+22-persp_fallback_1x
+23-persp_clamp_1x
+24-persp_floor_2x
+25-persp_fallback_2x
+26-persp_clamp_2x
+27-persp_threads

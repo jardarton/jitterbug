@@ -1,0 +1,22 @@
+# The console-level first-light scene's frame hashes (scene.h here), as
+# examples/first-light recorded them before it moved to the friendly level,
+# unchanged: the one expected value for every build (native and wasm, any
+# thread count), FNV-1a 64 over the RGBA bytes of frames 0 to frames-1, one
+# after another, as test_console_scene prints them. Checked by the
+# console_scene tests (tests/CMakeLists.txt). A baseline kept as it is: should
+# the library's pixels change on purpose, test_console_scene --expect prints
+# the hash each run now gives, to copy here by hand.
+#
+# base covers a whole turn of the cube (256 frames) and of the star (171) and
+# every primitive the scene draws; the 30-frame runs flip one switch each
+# (precise vertices only show above 1x, so its run is at 2x).
+#
+# name     frames scale precise perspective dither hash
+base       300    1     0       0           1      4e6336f5ce09d450
+short      30     1     0       0           1      429c447a5d216d7e
+scale2     30     2     0       0           1      003bc661e2bca850
+scale3     30     3     0       0           1      ba419b4f7286d90b
+precise2   30     2     1       0           1      b30946e6666835c9
+persp      30     1     0       1           1      0d3ff5301853be0d
+nodither   30     1     0       0           0      d17d1ab63a027710
+all3       30     3     1       1           1      562244733131c366

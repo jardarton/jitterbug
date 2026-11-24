@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jitterbug demo</title>
+<meta name="description" content="An original scene drawn by jitterbug, a C library that renders like the PlayStation GPU, running as WebAssembly.">
+<!-- The beetle of the README's logo (examples/header-images draws it), inline: the page fetches
+     nothing but its module. -->
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<style>
+  :root { color-scheme: dark; --bg: #0f0e14; --fg: #dcd8e4; --dim: #9a94a8; --btn: #221f2c;
+          --edge: #3e3950; --on: #2d5a38; --on-edge: #62b072; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 1300px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  p.lede { margin: 2px 0 12px; color: var(--dim); }
+  #screen { display: block; background: #000; margin: 0 auto 12px; max-width: 100%;
+            image-rendering: pixelated; image-rendering: crisp-edges; touch-action: manipulation; }
+  #controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  button { background: var(--btn); color: inherit; border: 1px solid var(--edge); border-radius: 6px;
+           min-height: 40px; padding: 4px 10px; font: inherit; cursor: pointer;
+           touch-action: manipulation; }
+  button[aria-pressed="true"] { background: var(--on); border-color: var(--on-edge); }
+  kbd { font: 12px ui-monospace, monospace; opacity: 0.7; margin-left: 4px; }
+  #status { text-align: center; margin: 10px 0 0; font: 13px ui-monospace, monospace;
+            min-height: 1.5em; color: var(--dim); }
+  section.about { max-width: 46em; margin: 18px auto 0; font-size: 14px; color: var(--dim); }
+  section.about dt { color: var(--fg); margin-top: 6px; }
+  section.about dd { margin: 0 0 0 1.2em; }
+  code { font: 13px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<main>
+<h1>jitterbug demo</h1>
+<p class="lede">An original scene drawn by jitterbug, a C library that renders like the PlayStation GPU,
+running here as WebAssembly. Each of the console's artefacts is a switch: flip them and watch.</p>
+<canvas id="screen" width="320" height="240" aria-label="the demo's frame"></canvas>
+<div id="controls">
+  <button data-key="1" data-scale="1">1x<kbd>1</kbd></button>
+  <button data-key="2" data-scale="2">2x<kbd>2</kbd></button>
+  <button data-key="3" data-scale="3">3x<kbd>3</kbd></button>
+  <button data-key="4" data-scale="4">4x<kbd>4</kbd></button>
+  <button data-key="v" data-bit="4">Precise vertices<kbd>V</kbd></button>
+  <button data-key="t" data-bit="5">Perspective-correct<kbd>T</kbd></button>
+  <button data-key="d" data-bit="6">Dithering<kbd>D</kbd></button>
+  <button data-key="c" data-bit="9">CLUT cache<kbd>C</kbd></button>
+  <button data-key="w" data-bit="7">Widescreen<kbd>W</kbd></button>
+  <button data-key="g" data-bit="8">Float geometry<kbd>G</kbd></button>
+  <button data-key="f" data-bit="10">Fog<kbd>F</kbd></button>
+  <button data-key="h" data-bit="11">Panel<kbd>H</kbd></button>
+  <button data-key="p" data-bit="12">Pause<kbd>Space</kbd></button>
+  <button data-key="n">Step<kbd>&rarr;</kbd></button>
+</div>
+<p id="status">loading</p>
+<section class="about">
+<dl>
+  <dt>1x to 4x</dt><dd>the internal resolution. Every frame is still drawn at the console's 1x too.</dd>
+  <dt>Precise vertices</dt><dd>above 1x, polygons stop snapping to the 1x pixel grid: no vertex jitter.</dd>
+  <dt>Perspective-correct</dt><dd>textures stop swimming across large polygons (the water, near hills): no affine wobble.</dd>
+  <dt>Dithering</dt><dd>the console's 4 x 4 pattern on shaded pixels, seen at 1x in the sky and the shading.</dd>
+  <dt>CLUT cache</dt><dd>the GPU keeps the last palette it loaded. The sky's cloud bands share one palette
+    row, rewritten before each band with no cache flush: with the cache, every band keeps the first band's
+    colours; without it, each band shows its own.</dd>
+  <dt>Widescreen</dt><dd>a 16:9 display, 427 x 240; the view widens with it.</dd>
+  <dt>Float geometry</dt><dd>the GTE's fixed-point arithmetic, as on the console, or float.</dd>
+  <dt>Fog</dt><dd>the GTE's depth cue towards the haze; without it, the far edge of the world shows.</dd>
+</dl>
+<p>The sea moves by palette animation alone, and the sun, the lighthouse and the fireflies glow by
+additive blending. Every pixel comes from the same C as the native build, in integer arithmetic and
+the library's own float maths, so the frames are the same bits here as anywhere.
+Check mode: <code>?frames=240</code> (with <code>&amp;step=</code>, <code>&amp;scale=</code>,
+<code>&amp;precise=</code>, <code>&amp;perspective=</code>, <code>&amp;dither=</code>,
+<code>&amp;widescreen=</code>, <code>&amp;float=</code>, <code>&amp;clutcache=</code>,
+<code>&amp;fog=</code>, <code>&amp;script=</code>) draws that many frames as fast as it can and shows
+their hash.</p>
+</section>
+</main>
+
+<script src="demo.js"></script>
+<script>
+"use strict";
+
+// Nothing from here to the canvas touches the page: test-module.cjs runs
+// this part under Node, as it is.
+
+// FNV-1a 64 over bytes, as main_headless.c computes it, in four 16-bit
+// limbs (h[0] lowest) so that it needs no BigInt in the inner loop.
+function fnv1a64(h, bytes) {
+  let h0 = h[0], h1 = h[1], h2 = h[2], h3 = h[3];
+  for (let i = 0; i < bytes.length; i++) {
+    h0 ^= bytes[i];
+    // h *= 0x100000001b3: h * 0x1b3, plus h << 40 (h0, h1 into limbs 2, 3).
+    const t0 = h0 * 0x1b3, t1 = h1 * 0x1b3;
+    const t2 = h2 * 0x1b3 + h0 * 0x100, t3 = h3 * 0x1b3 + h1 * 0x100;
+    h0 = t0 & 0xffff;
+    const s1 = t1 + (t0 >>> 16);
+    h1 = s1 & 0xffff;
+    const s2 = t2 + (s1 >>> 16);
+    h2 = s2 & 0xffff;
+    h3 = (t3 + (s2 >>> 16)) & 0xffff;
+  }
+  h[0] = h0; h[1] = h1; h[2] = h2; h[3] = h3;
+}
+const FNV_BASIS = [0x2325, 0x8422, 0x9ce4, 0xcbf2];
+const hex = h => h.slice().reverse().map(x => x.toString(16).padStart(4, "0")).join("");
+
+// A script, as main_headless.c reads it: "-", or TICK:KEYS[,TICK:KEYS...]
+// with 1 to 8 of the keys a tick. A Map from tick to its keys, in order.
+function parseScript(text) {
+  const events = new Map();
+  if (text === "-") return events;
+  for (const part of text.split(",")) {
+    const m = /^([0-9]{1,10}):([1-4vtdcwgfhpn]{1,8})$/.exec(part);
+    if (!m || Number(m[1]) > 1e9) throw new Error("bad script event " + JSON.stringify(part));
+    const t = Number(m[1]);
+    events.set(t, (events.get(t) || "") + m[2]);
+  }
+  return events;
+}
+
+// Ticks as main_headless.c runs them: at each, the script's keys pressed,
+// the frame drawn and hashed (and given to each, if any), the frame
+// counter moved on. The hash of all the frames, in hex.
+function runTicks(m, frames, step, script, each) {
+  const h = FNV_BASIS.slice();
+  for (let t = 0; t < frames; t++) {
+    for (const k of script.get(t) || "") {
+      const r = m._dm_web_key(k.charCodeAt(0));
+      if (r < 0) throw new Error("tick " + t + ": switches refused, jb_result " + -r);
+    }
+    const ptr = m._dm_web_draw();
+    if (!ptr) throw new Error("tick " + t + ": the frame failed");
+    fnv1a64(h, m.HEAPU8.subarray(ptr, ptr + m._dm_web_width() * m._dm_web_height() * 4));
+    if (each) each(ptr);
+    m._dm_web_advance(step);
+  }
+  return hex(h);
+}
+
+const canvas = document.getElementById("screen");
+const ctx2d = canvas.getContext("2d");
+const status = document.getElementById("status");
+const params = new URLSearchParams(location.search);
+const num = (name, def, lo, hi) => {
+  const v = Number(params.get(name));
+  return params.has(name) && Number.isInteger(v) && v >= lo && v <= hi ? v : def;
+};
+// The switches to start with, in the order dm_web_init takes them.
+const start = [num("scale", 1, 1, 8), num("precise", 0, 0, 1), num("perspective", 0, 0, 1),
+  num("dither", 1, 0, 1), num("widescreen", 0, 0, 1), num("float", 0, 0, 1),
+  num("clutcache", 1, 0, 1), num("fog", 1, 0, 1)];
+
+// The frame's pixels, in the module's memory, onto the canvas. The canvas
+// is the frame's size; CSS shows it as large as a whole multiple fits.
+function show(m, ptr) {
+  const w = m._dm_web_width(), h = m._dm_web_height();
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    fit();
+  }
+  // HEAPU8 is looked up each time: the memory may have grown.
+  const bytes = new Uint8ClampedArray(m.HEAPU8.buffer, ptr, w * h * 4);
+  ctx2d.putImageData(new ImageData(bytes, w, h), 0, 0);
+}
+
+// The canvas's CSS size: a whole multiple of the frame if one fits, else
+// of its 1x size (320 x 240, or 427 x 240 in widescreen: frames are 240
+// lines at every scale), else, on a small screen, the 1x size shrunk to
+// fit, keeping the frame's shape.
+function fit() {
+  const aspect = canvas.width / canvas.height;
+  const base = canvas.width * 240 / canvas.height; // the frame's 1x width
+  const room = Math.min(document.querySelector("main").clientWidth,
+    Math.max(window.innerHeight - 200, 240) * aspect);
+  const k = Math.floor(room / canvas.width), k1 = Math.floor(room / base);
+  const css = k >= 1 ? canvas.width * k : k1 >= 1 ? base * k1 : Math.max(room, 1);
+  canvas.style.width = css + "px";
+  canvas.style.height = css / aspect + "px";
+}
+window.addEventListener("resize", fit);
+
+createDemo().then(m => {
+  const r = m._dm_web_init(...start);
+  if (r !== 0) {
+    status.textContent = "could not start (jb_result " + r + ")";
+    return;
+  }
+  if (params.has("frames")) {
+    // Check mode: the ticks as fast as they go, and their hash.
+    const t0 = performance.now();
+    try {
+      const got = runTicks(m, num("frames", 0, 0, 1000000), num("step", 1, 1, 64),
+        parseScript(params.get("script") || "-"), ptr => show(m, ptr));
+      status.textContent = "all " + params.get("frames") + " ticks: " + got + "  [" +
+        Math.round(performance.now() - t0) + " ms]";
+      document.title = "demo " + got;
+    } catch (e) {
+      status.textContent = "check failed: " + e.message;
+      document.title = "demo failed";
+    }
+    return;
+  }
+
+  let notice = "", dirty = true, last = null, acc = 0;
+  // The buttons show the switches as they are.
+  const sync = () => {
+    const s = m._dm_web_state();
+    for (const b of document.querySelectorAll("[data-scale]"))
+      b.setAttribute("aria-pressed", String(Number(b.dataset.scale) === (s & 15)));
+    for (const b of document.querySelectorAll("[data-bit]"))
+      b.setAttribute("aria-pressed", String((s >> Number(b.dataset.bit) & 1) === 1));
+  };
+  // A key or a button: the scene's keyboard (dm_key).
+  const press = key => {
+    const r = m._dm_web_key(key.charCodeAt(0));
+    if (r === 0) return false;
+    notice = r < 0 ? "  (switches refused: jb_result " + -r + ")" : "";
+    sync();
+    dirty = true;
+    return true;
+  };
+  document.getElementById("controls").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (b) press(b.dataset.key);
+  });
+  window.addEventListener("keydown", e => {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    // Space on a focused button presses that button, as it should for
+    // keyboard users; it pauses everywhere else.
+    if (e.key === " " && e.target.closest && e.target.closest("button")) return;
+    const k = e.key === " " ? "p" : e.key === "ArrowRight" ? "n" : e.key.toLowerCase();
+    if (k.length === 1 && press(k)) e.preventDefault();
+  });
+  sync();
+
+  // One scene frame per 1/60 s (an accumulator over the animation clock),
+  // drawn when it changes.
+  const STEP = 1000 / 60;
+  function tick(t) {
+    if (last !== null) acc = Math.min(acc + t - last, 4 * STEP);
+    last = t;
+    for (; acc >= STEP; acc -= STEP) {
+      const before = m._dm_web_frame();
+      m._dm_web_advance(1);
+      if (m._dm_web_frame() !== before) dirty = true;
+    }
+    if (dirty) {
+      const paused = (m._dm_web_state() >> 12 & 1) === 1;
+      const ptr = m._dm_web_draw();
+      if (!ptr) {
+        status.textContent = "frame " + m._dm_web_frame() + " failed" + notice;
+      } else {
+        show(m, ptr);
+        status.textContent = "frame " + m._dm_web_frame() + (paused ? " (paused)" : "") + notice;
+        dirty = false;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>
+</body>
+</html>

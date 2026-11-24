@@ -1,0 +1,26 @@
+# first-light's frame hashes, the one expected value for every build (native
+# and wasm, any thread count): FNV-1a 64 over the RGBA bytes of frames 0 to
+# frames-1, one after another, as first-light-headless prints them. Checked by
+# the first_light tests (CMakeLists.txt here) and by web/test-module.cjs.
+#
+# base covers a whole turn of the cube (256 frames) and of the star (171) and
+# everything the scene draws; the 30-frame runs flip one switch each (precise
+# vertices only show above 1x, so its run is at 2x), and all3 has every
+# switch on at 3x.
+#
+# After a deliberate change, re-record every hash in this file with
+#   nix develop -c cmake --build build --target first_light_record
+# (which builds first-light-headless and runs it with --record on this file).
+#
+# name     frames scale precise perspective dither widescreen float clutcache hash
+base       300    1     0       0           1      0          0     1         4cdedb3918856d13
+short      30     1     0       0           1      0          0     1         6ac98c45e5cc455a
+scale2     30     2     0       0           1      0          0     1         e8f30fd2735a8021
+scale3     30     3     0       0           1      0          0     1         e6695172093a4645
+precise2   30     2     1       0           1      0          0     1         13ec17ad8d6ee3c0
+persp      30     1     0       1           1      0          0     1         f61aa53ba964ea98
+nodither   30     1     0       0           0      0          0     1         ca66cba88f45303d
+wide       30     1     0       0           1      1          0     1         4610a7bfe4d4cbb3
+float      30     1     0       0           1      0          1     1         47b1dbc36cfe860b
+nocache    30     1     0       0           1      0          0     0         a982fa179ecfdc2a
+all3       30     3     1       1           1      1          1     1         e42d85b0529207de

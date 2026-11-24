@@ -1,0 +1,368 @@
+diff -ruN a/src/soft/audit.h b/src/soft/audit.h
+--- a/src/soft/audit.h
++++ b/src/soft/audit.h
+@@ -0,0 +1,59 @@
++/*
++ * Audit instrumentation (tools/seed-record/audit, not part of jitterbug):
++ * for every pixel of the 1x VRAM, the last JBI_AUDIT_HIST times a
++ * triangle, rectangle or line wrote it or passed over it without writing,
++ * oldest first, with what went into each write. Recorded only while
++ * jbi_audit_map is set and only for the VRAM jbi_audit_vram points to;
++ * single-threaded use only (--threads 1). Fills, copies, uploads, pokes and
++ * the 1x pixels filled in from the scaled VRAM are not recorded: they show
++ * as a pixel whose value is not what the last recorded event left.
++ */
++#ifndef JB_SOFT_AUDIT_H
++#define JB_SOFT_AUDIT_H
++
++#include <stdint.h>
++
++enum {
++    JBI_AUDIT_FLAT = 1,     /* untextured flat triangle */
++    JBI_AUDIT_GOURAUD = 2,  /* untextured Gouraud triangle */
++    JBI_AUDIT_TEXTURED = 3, /* textured triangle */
++    JBI_AUDIT_TILE = 4,     /* untextured rectangle */
++    JBI_AUDIT_SPRITE = 5,   /* textured rectangle */
++    JBI_AUDIT_LINE = 6,
++    JBI_AUDIT_BLENDED = 0x10,          /* or-ed in: semi-transparency applied */
++    JBI_AUDIT_SKIP_TRANSPARENT = 0x20, /* or-ed in: not written, texel 0x0000 */
++    JBI_AUDIT_SKIP_MASK = 0x40,        /* or-ed in: not written, the mask bit (check_mask) */
++    /* flags: bits 0-1 the semi-transparency mode, and the primitive's state */
++    JBI_AUDIT_SET_MASK = 4,     /* set_mask */
++    JBI_AUDIT_RAW = 8,          /* textured: raw (the texel not modulated) */
++    JBI_AUDIT_DITHER = 0x10,    /* dithered */
++    JBI_AUDIT_CHECK_MASK = 0x20, /* check_mask */
++    JBI_AUDIT_SHADED = 0x40,    /* the colour interpolated (Gouraud) */
++    JBI_AUDIT_SEMI = 0x80,      /* semi-transparent primitive */
++    JBI_AUDIT_HIST = 16
++};
++
++typedef struct {
++    uint32_t id;    /* the primitive, from 1 in drawing order */
++    uint16_t bg;    /* the pixel before */
++    uint16_t out;   /* the pixel after (bg for a skip) */
++    uint16_t src;   /* writes: the colour before blending, 5 bits a channel */
++    uint16_t texel; /* textured: the texel (0 for a transparent skip) */
++    int16_t u, v;   /* textured: the texel coordinate sampled */
++    int16_t r, g, b; /* writes: the colour before texturing and dithering, 8 bits a
++                        channel (interpolated or the primitive's; a raw
++                        texture's ignores it); 0 for a skip */
++    uint8_t kind;   /* JBI_AUDIT_* */
++    uint8_t flags;  /* the semi-transparency mode and the state bits above */
++} jbi_audit_ev;
++
++typedef struct {
++    uint32_t n; /* events so far; event k is ev[k % JBI_AUDIT_HIST] */
++    jbi_audit_ev ev[JBI_AUDIT_HIST];
++} jbi_audit_px;
++
++extern jbi_audit_px *jbi_audit_map;
++extern const uint16_t *jbi_audit_vram;
++extern uint32_t jbi_audit_id;
++
++#endif
+diff -ruN a/src/soft/raster.c b/src/soft/raster.c
+--- a/src/soft/raster.c
++++ b/src/soft/raster.c
+@@ -56,6 +56,41 @@
+ #define GSCALE ((i64)1 << (FRAC - GFRAC))
+ #define HALF (ONE >> 1)
+ 
++#include "soft/audit.h"
++
++jbi_audit_px *jbi_audit_map;
++const uint16_t *jbi_audit_vram;
++uint32_t jbi_audit_id;
++
++#define AUDIT_ON(vram) (jbi_audit_map != NULL && (const uint16_t *)(vram) == jbi_audit_vram)
++#define AUDIT_FLAGS(mode, set_mask, raw, dither, check_mask, shaded, semi)                     \
++    (((mode) & 3) | ((set_mask) ? JBI_AUDIT_SET_MASK : 0) | ((raw) ? JBI_AUDIT_RAW : 0) |      \
++     ((dither) ? JBI_AUDIT_DITHER : 0) | ((check_mask) ? JBI_AUDIT_CHECK_MASK : 0) |           \
++     ((shaded) ? JBI_AUDIT_SHADED : 0) | ((semi) ? JBI_AUDIT_SEMI : 0))
++/* One event at pixel dst: bg is the pixel before, *dst after. */
++static inline void audit_ev(const uint16_t *vram, const uint16_t *dst, int kind, uint32_t bg,
++                            uint32_t src, uint32_t texel, int u, int v, int flags, int r, int g,
++                            int b)
++{
++    if (AUDIT_ON(vram)) {
++        jbi_audit_px *a = &jbi_audit_map[dst - vram];
++        jbi_audit_ev *e = &a->ev[a->n++ % JBI_AUDIT_HIST];
++
++        e->id = jbi_audit_id;
++        e->bg = (uint16_t)bg;
++        e->out = *dst;
++        e->src = (uint16_t)src;
++        e->texel = (uint16_t)texel;
++        e->u = (int16_t)u;
++        e->v = (int16_t)v;
++        e->r = (int16_t)r;
++        e->g = (int16_t)g;
++        e->b = (int16_t)b;
++        e->kind = (uint8_t)kind;
++        e->flags = (uint8_t)flags;
++    }
++}
++
+ const signed char jbi_dither_matrix[4][4] = {
+     {-4, 0, -3, 1},
+     {2, -2, 3, -1},
+@@ -137,11 +172,17 @@
+ 
+     for (x = x0; x < x1; ++x) {
+         uint16_t *dst = &row[x];
+-        uint32_t out, stp = 0;
+-        int cr, cg, cb;
+-
+-        if (s->check_mask && (*dst & 0x8000))
++        uint32_t out, stp = 0, texel = 0, bg = *dst;
++        int cr, cg, cb, sr, sg, sb;
++        const int akind = depth ? JBI_AUDIT_TEXTURED : gouraud ? JBI_AUDIT_GOURAUD : JBI_AUDIT_FLAT;
++        const int aflags = AUDIT_FLAGS(s->semi_mode, s->set_mask, raw, dither, s->check_mask,
++                                       gouraud, semi);
++
++        if (s->check_mask && (*dst & 0x8000)) {
++            audit_ev(vram, dst, akind | JBI_AUDIT_SKIP_MASK, bg, 0, 0, (int)(u >> FRAC),
++                     (int)(v >> FRAC), aflags, 0, 0, 0);
+             goto next;
++        }
+         if (gouraud) {
+             cr = (int)(r >> FRAC);
+             cg = (int)(g >> FRAC);
+@@ -151,13 +192,18 @@
+             cg = s->fg;
+             cb = s->fb;
+         }
++        sr = cr;
++        sg = cg;
++        sb = cb;
+         if (depth) {
+-            uint32_t texel = tex_fetch(&s->tex, vram, (uint32_t)(u >> FRAC), (uint32_t)(v >> FRAC),
+-                                       depth);
+             int tr, tg, tb;
+ 
+-            if (texel == 0)
++            texel = tex_fetch(&s->tex, vram, (uint32_t)(u >> FRAC), (uint32_t)(v >> FRAC), depth);
++            if (texel == 0) {
++                audit_ev(vram, dst, akind | JBI_AUDIT_SKIP_TRANSPARENT, bg, 0, 0, (int)(u >> FRAC),
++                         (int)(v >> FRAC), aflags, 0, 0, 0);
+                 goto next;
++            }
+             stp = texel & 0x8000;
+             tr = (int)(texel & 31);
+             tg = (int)((texel >> 5) & 31);
+@@ -191,6 +237,9 @@
+         else
+             out = (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10;
+         *dst = (uint16_t)(out | stp | s->set_mask);
++        audit_ev(vram, dst, akind | (semi && (!depth || stp) ? JBI_AUDIT_BLENDED : 0), bg,
++                 (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10, texel, (int)(u >> FRAC),
++                 (int)(v >> FRAC), aflags, sr, sg, sb);
+     next:
+         if (gouraud) {
+             r += s->drdx;
+@@ -428,6 +477,8 @@
+     Tri t;
+     Span s;
+ 
++    if (AUDIT_ON(target->vram))
++        ++jbi_audit_id;
+     if (flags & JBI_F_NO_1X)
+         return; /* drawn in the scaled pass only (prim.h) */
+     if (too_far(v0, v1) || too_far(v1, v2) || too_far(v2, v0))
+@@ -550,7 +601,12 @@
+     uint32_t flat = (uint32_t)(r >> 3) | (uint32_t)(g >> 3) << 5 | (uint32_t)(b >> 3) << 10;
+     const jbi_tex_source *tex = &p->tex;
+     int px, py;
++    const int akind = textured ? JBI_AUDIT_SPRITE : JBI_AUDIT_TILE;
++    const int aflags = AUDIT_FLAGS(p->semi_mode, p->set_mask, textured && raw, 0, p->check_mask,
++                                   0, semi);
+ 
++    if (AUDIT_ON(vram))
++        ++jbi_audit_id;
+     if (x0 < p->clip_x0)
+         x0 = p->clip_x0;
+     if (y0 < p->clip_y0)
+@@ -574,18 +630,24 @@
+         tv = (uint32_t)(v + (py - y) * dv);
+         for (px = x0; px < x1; ++px) {
+             uint16_t *dst = &row[px];
+-            uint32_t texel = 0, stp = 0, out;
++            uint32_t texel = 0, stp = 0, out, bg = *dst;
++            uint32_t tu = (uint32_t)(u + (px - x) * du);
+             int cr, cg, cb;
+ 
+-            if (p->check_mask && (*dst & 0x8000))
++            if (p->check_mask && (*dst & 0x8000)) {
++                audit_ev(vram, dst, akind | JBI_AUDIT_SKIP_MASK, bg, 0, 0, (int)tu, (int)tv,
++                         aflags, 0, 0, 0);
+                 continue;
++            }
+             if (textured) {
+-                uint32_t tu = (uint32_t)(u + (px - x) * du);
+                 texel = depth == 4   ? tex_fetch(tex, vram, tu, tv, 4)
+                         : depth == 8 ? tex_fetch(tex, vram, tu, tv, 8)
+                                      : tex_fetch(tex, vram, tu, tv, 15);
+-                if (texel == 0)
++                if (texel == 0) {
++                    audit_ev(vram, dst, akind | JBI_AUDIT_SKIP_TRANSPARENT, bg, 0, 0, (int)tu,
++                             (int)tv, aflags, 0, 0, 0);
+                     continue;
++                }
+                 stp = texel & 0x8000;
+                 cr = (int)(texel & 31);
+                 cg = (int)((texel >> 5) & 31);
+@@ -605,6 +667,9 @@
+             else
+                 out = (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10;
+             *dst = (uint16_t)(out | stp | p->set_mask);
++            audit_ev(vram, dst, akind | (semi && (!textured || stp) ? JBI_AUDIT_BLENDED : 0), bg,
++                     (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10, texel, (int)tu,
++                     (int)tv, aflags, r, g, b);
+         }
+     }
+ }
+@@ -646,6 +711,8 @@
+     i64 r, g, bl, sr = 0, sg = 0, sb = 0;
+     int i;
+ 
++    if (AUDIT_ON(target->vram))
++        ++jbi_audit_id;
+     if (adx > 1023 || ady > 511)
+         return;
+     /* Colours as the console steps them: the first vertex's plus half a
+@@ -669,7 +736,10 @@
+         int px, py;
+         int cr = (int)(r >> FRAC), cg = (int)(g >> FRAC), cb = (int)(bl >> FRAC);
+         uint16_t *dst;
+-        uint32_t out;
++        uint32_t out, bg;
++        const int ar = cr, ag = cg, ab = cb;
++        const int aflags = AUDIT_FLAGS(p->semi_mode, p->set_mask, 0, dither, p->check_mask,
++                                       gouraud, semi);
+ 
+         if (x_major) {
+             px = a->x + sgn * i;
+@@ -686,8 +756,12 @@
+         if (!jbi_rows_owns(rows, py))
+             continue;
+         dst = &VROW(target->vram, py)[px];
+-        if (p->check_mask && (*dst & 0x8000))
++        bg = *dst;
++        if (p->check_mask && (*dst & 0x8000)) {
++            audit_ev(target->vram, dst, JBI_AUDIT_LINE | JBI_AUDIT_SKIP_MASK, bg, 0, 0, 0, 0,
++                     aflags, 0, 0, 0);
+             continue;
++        }
+         if (dither) {
+             int d = jbi_dither_matrix[py & 3][px & 3];
+             cr = clamp255(cr + d);
+@@ -702,6 +776,9 @@
+         else
+             out = (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10;
+         *dst = (uint16_t)(out | p->set_mask);
++        audit_ev(target->vram, dst, JBI_AUDIT_LINE | (semi ? JBI_AUDIT_BLENDED : 0), bg,
++                 (uint32_t)cr | (uint32_t)cg << 5 | (uint32_t)cb << 10, 0, 0, 0, aflags, ar, ag,
++                 ab);
+     }
+ }
+ 
+diff -ruN a/tests/seed_replay.c b/tests/seed_replay.c
+--- a/tests/seed_replay.c
++++ b/tests/seed_replay.c
+@@ -84,6 +84,7 @@
+ 
+ #include "core/context.h"
+ #include "soft/soft.h"
++#include "soft/audit.h"
+ #include "stb_image.h"
+ #include "stb_image_write.h"
+ #include "trace.h"
+@@ -542,6 +543,55 @@
+            what, count, x0, y0, x1, y1, lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], big, mask);
+ }
+ 
++/* JB_AUDIT (tools/seed-record/audit): at a capture, the map entries of
++   every 1x pixel that differs from the other build's dump of the same
++   capture (JB_AUDIT_OTHER), as NAME.opK.audit: "JBAUDIT3", the number of
++   entries and the size of one (uint32 each), then for each the pixel's
++   index (uint32) and its jbi_audit_px, in increasing index order. */
++static void audit_write(const Scene *s, const uint16_t *pix, size_t count)
++{
++    static uint16_t *other;
++    char path[4096];
++    FILE *f;
++    size_t i;
++    uint32_t n = 0, size = (uint32_t)sizeof(jbi_audit_px);
++
++    if (other == NULL && (other = malloc(count * 2)) == NULL) {
++        fprintf(stderr, "seed_replay: JB_AUDIT: out of memory\n");
++        exit(2);
++    }
++    snprintf(path, sizeof path, "%s/%s.op%u.1x.raw", getenv("JB_AUDIT_OTHER"), s->name, s->op);
++    f = fopen(path, "rb");
++    if (f == NULL || fread(other, 2, count, f) != count || fgetc(f) != EOF) {
++        fprintf(stderr, "seed_replay: JB_AUDIT: cannot read %s\n", path);
++        exit(2);
++    }
++    fclose(f);
++    for (i = 0; i < count; ++i)
++        n += pix[i] != other[i];
++    snprintf(path, sizeof path, "%s/%s.op%u.audit", bl.dump, s->name, s->op);
++    f = fopen(path, "wb");
++    if (f == NULL || fwrite("JBAUDIT3", 1, 8, f) != 8 || fwrite(&n, 4, 1, f) != 1 ||
++        fwrite(&size, 4, 1, f) != 1) {
++        fprintf(stderr, "seed_replay: cannot write %s\n", path);
++        exit(2);
++    }
++    for (i = 0; i < count; ++i) {
++        uint32_t index = (uint32_t)i;
++
++        if (pix[i] == other[i])
++            continue;
++        if (fwrite(&index, 4, 1, f) != 1 || fwrite(&jbi_audit_map[i], size, 1, f) != 1) {
++            fprintf(stderr, "seed_replay: cannot write %s\n", path);
++            exit(2);
++        }
++    }
++    if (fclose(f) != 0) {
++        fprintf(stderr, "seed_replay: cannot write %s\n", path);
++        exit(2);
++    }
++}
++
+ /* --dump and --compare at a capture: the 1x VRAM and the scaled one. */
+ static void dump_compare(const Scene *s)
+ {
+@@ -558,6 +608,8 @@
+         if (bl.dump != NULL) {
+             snprintf(path, sizeof path, "%s/%s.op%u.%dx.raw", bl.dump, s->name, s->op, sn);
+             write_raw(path, pix, count);
++            if (k == 0 && jbi_audit_map != NULL)
++                audit_write(s, pix, count);
+         }
+         if (bl.compare != NULL) {
+             uint16_t *old;
+@@ -1220,6 +1272,7 @@
+         }
+         if (s.at_end)
+             trace_die(r, "an op after the scene-end capture");
++        jbi_audit_vram = vram_1x();
+         op_apply(&s);
+     }
+ 
+@@ -1392,6 +1445,15 @@
+     /* In sequence the first scene starts fresh: a new context, which is
+        configured as jbi_configure(ctx, 1, -1, 1) would. */
+     context_create();
++    if (getenv("JB_AUDIT") != NULL) {
++        jbi_audit_map = calloc((size_t)JBI_VRAM_W * JBI_VRAM_H, sizeof *jbi_audit_map);
++        if (jbi_audit_map == NULL || bl.dump == NULL || threads != 1 ||
++            getenv("JB_AUDIT_OTHER") == NULL) {
++            fprintf(stderr, "seed_replay: JB_AUDIT needs memory, --dump, --threads 1 and "
++                            "JB_AUDIT_OTHER\n");
++            return 2;
++        }
++    }
+     if (sequence && threads > 0)
+         jbi_configure(ctx, 1, -1, threads);
+     for (; i < argc; ++i)

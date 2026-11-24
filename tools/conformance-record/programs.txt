@@ -1,0 +1,27 @@
+# The ps1-tests GPU programs recorded (gpu/NAME), one a line: the name,
+# then the ps1-tests commit it is recorded from. The first eleven have a
+# VRAM dump from the console, the last two a log.
+#
+# The commit is the one the console's dump or log was committed with: the
+# program as it was when the console ran it (docs/testing.md, "How
+# `tools/conformance-record` works"). A third field is for a program whose
+# dump-era source cannot be recorded as it is: the list is recorded from the
+# second field's
+# commit, the dump-era commit in the third is recorded too, for its GPU
+# words only, and the two must send the same words (record.sh).
+#
+# The dumps and logs themselves, and ps1-tests' licence, are taken from the
+# pin (pins.sh); each is unchanged since its commit here.
+triangle 78ab568408bacfad61eab6a487235be2d0a8c149
+quad 603a53630e20d787b1dc2380b34fa7a391189d6e
+lines d1a63eec6a0cbcefa6bb22c2500907e6281f6eee
+rectangles 86a6f3c4b107277d3a1e9f094e4849d7593b68df
+transparency da6b472d023df0ce4dd2c3a71b5c1d7a1bef50b7
+uv-interpolation eb10e4577ad58d87e1ca4f51d19cb7eb1926bf44
+clipping 5031fcb40747075b43f2c6253dc87be33df09ad6
+texture-flip 7adb9f019ff4da2a32959f0e0ecd31fc66a223ed
+texture-overflow b0a94a82a138a215617527496385ed1b5ffc4ab5
+clut-cache 5f73d61b27a8d51269b54dde1c456d2d2f7dc865
+vram-to-vram-overlap 93568c5589e58b1fe442c854728324994bd30426
+mask-bit 79dfb131b5c3694a75cbecb64a7b8f2ef29a9ef9 d190785c9d3c6eba8c956b926ab6da4c2f14fd88
+gp0-e1 42352ae717a55a50bc1cd581946fab8ff95b0441

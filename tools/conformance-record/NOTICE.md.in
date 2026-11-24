@@ -1,0 +1,57 @@
+# jitterbug conformance lists: notices
+
+This directory is the output of jitterbug's conformance recorder
+(`tools/conformance-record` in jitterbug's sources; `nix build
+.#conformance-lists`). It is fetched and generated on your machine for
+local testing. jitterbug does not redistribute it, and part of it is not
+in jitterbug's repository at all (below).
+
+## What is here
+
+- `tests/conformance/NAME.jbc`: the GPU commands of each of 13 programs of
+  ps1-tests (https://github.com/JaCzekanski/ps1-tests), recorded from
+  the programs' sources, which were fetched at the commits named in each
+  list's header.
+- `third_party/ps1-tests/gpu/NAME/vram.png` and `psx.log`: the results of
+  those programs on a console, as published in ps1-tests at commit
+  @PS1_TESTS_REV@, unchanged.
+- `fixtures-identity.txt`: for each program, the list's size in words
+  and its FNV-1a, whether the console's result is a dump or a log, and
+  that file's FNV-1a: the identity jitterbug's fixture table states.
+
+## Licences
+
+- **ps1-tests** (the programs and their common GPU library, from which
+  the lists are recorded, and the dumps and logs): MIT, `third_party/ps1-tests/LICENSE`, copied from
+  ps1-tests.
+- **PSn00bSDK** (https://github.com/Lameguy64/PSn00bSDK): the list
+  `tests/conformance/vram-to-vram-overlap.jbc` contains the SDK's debug
+  font, a 4-bit image of 128 x 32 texels and its 16-colour CLUT, as the
+  payloads of the two GP0_DMA ops after the CALL op `FntLoad`; the dump
+  `third_party/ps1-tests/gpu/vram-to-vram-overlap/vram.png` shows it as
+  the console drew it. That font is Covered Software under the Mozilla
+  Public License 2.0 (`third_party/psn00bsdk/LICENSE.md`). Its Source Code
+  Form is the file `libpsn00b/psxgpu/dbugfont.tim` in PSn00bSDK at commit
+  @PSN00BSDK_REV@
+  (https://github.com/Lameguy64/PSn00bSDK/blob/@PSN00BSDK_REV@/libpsn00b/psxgpu/dbugfont.tim),
+  which the recorder read unchanged.
+
+## Images whose licence is not established
+
+The lists and dumps of three programs contain images that the test
+programs do not generate themselves:
+
+- `rectangles` and `texture-overflow`: a 128 x 128 15-bit photograph
+  (ps1-tests' `lena.tim` / `lena.h`); `texture-overflow` also a second
+  image (`cube.tim` / `cube.h`). Their pixels are the payloads of the
+  lists' LoadImage transfers, and the dumps show them as drawn.
+- `vram-to-vram-overlap`: the SDK's debug font (above).
+
+jitterbug could not establish a licence for the photograph or for the
+second image that allows redistributing them; ps1-tests' MIT licence does
+not say that it covers them. For that reason, and for the font's separate
+licence, the lists and dumps of these three programs are not in
+jitterbug's repository: they are fetched and recorded here for local
+testing only, and are not redistributed. The lists and dumps of the other
+ten programs contain only geometry, colours and pixels that the programs
+compute themselves, and are checked in.

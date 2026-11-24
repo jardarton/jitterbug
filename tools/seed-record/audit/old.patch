@@ -1,0 +1,33 @@
+--- a/src/soft/raster.c
++++ b/src/soft/raster.c
+@@ -261,8 +261,9 @@
+ {
+     i64 ax = (i64)(a1 - a0) * (v2->y - v0->y) - (i64)(a2 - a0) * (v1->y - v0->y);
+     i64 ay = (i64)(a2 - a0) * (v1->x - v0->x) - (i64)(a1 - a0) * (v2->x - v0->x);
+-    *ddx = ax * ((i64)1 << GFRAC) / area * GSCALE;
+-    *ddy = ay * ((i64)1 << GFRAC) / area * GSCALE;
++    /* AUDIT (tools/seed-record/audit, old.patch): the pre-fix gradients. */
++    *ddx = ax * ONE / area;
++    *ddy = ay * ONE / area;
+ }
+ 
+ /* A small bias for perspective values, so that values on an integer do
+@@ -457,12 +458,12 @@
+         gradient(v0->v, v1->v, v2->v, v0, v1, v2, area, &s.dvdx, &t.dvdy);
+         s.tex = p->tex;
+     }
+-    /* The values at vertex 0, plus half a unit (gradient()). */
+-    t.r0 = ((i64)v0->r << FRAC) + HALF;
+-    t.g0 = ((i64)v0->g << FRAC) + HALF;
+-    t.b0 = ((i64)v0->b << FRAC) + HALF;
+-    t.u0 = ((i64)v0->u << FRAC) + HALF;
+-    t.v0f = ((i64)v0->v << FRAC) + HALF;
++    /* AUDIT (old.patch): the pre-fix start values, BIAS (2^-20) above vertex 0. */
++    t.r0 = ((i64)v0->r << FRAC) + ((i64)1 << 12);
++    t.g0 = ((i64)v0->g << FRAC) + ((i64)1 << 12);
++    t.b0 = ((i64)v0->b << FRAC) + ((i64)1 << 12);
++    t.u0 = ((i64)v0->u << FRAC) + ((i64)1 << 12);
++    t.v0f = ((i64)v0->v << FRAC) + ((i64)1 << 12);
+     s.semi_mode = p->semi_mode;
+     s.check_mask = p->check_mask;
+     s.set_mask = p->set_mask;

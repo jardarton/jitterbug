@@ -1,0 +1,39 @@
+# The demo's frame hashes, the one expected value for every build (native
+# and wasm, any thread count): FNV-1a 64 over the RGBA bytes of every
+# tick's frame, one after another, as demo-headless prints them. Checked by
+# the demo tests (CMakeLists.txt here) and by web/test-module.cjs.
+#
+# A run is a number of ticks: at each, the script's keys for that tick are
+# pressed (the keys of the window and the page: scene.h, dm_key), the frame
+# is drawn, and the scene's frame counter moves on by the step unless
+# paused. The switch columns are where a run starts.
+#
+# base flies the whole loop (2768 frames) a frame in eight, with the
+# console's switches. tour flips every switch in turn at known ticks, and
+# back: fog (30, 60), dithering (90, 120), perspective-correct (150, 180),
+# the CLUT cache (210, 240), widescreen (270, 300), float geometry (330,
+# 360), the panel (390, 400), pause (410) with two single steps (415, 420)
+# and on again (425), then scale 2x (430), precise vertices (440), 4x
+# (450), precise off (455), 3x (460) and 1x (470). The 24-tick runs hide
+# the panel at their first tick (H), so that they differ only by their
+# switches, and start with one switch flipped each against short (precise
+# vertices at 2x, where it shows, against scale2); all3 has every switch
+# flipped at 3x. demo-headless requires runs of the same length to draw
+# different frames, so a switch that no longer reaches the context fails.
+#
+# After a deliberate change, re-record every hash in this file with
+#   nix develop -c cmake --build build --target demo_record
+#
+# name   frames step scale precise perspective dither widescreen float clutcache fog script hash
+base     346    8    1     0       0           1      0          0     1         1   -      3cdf20853183d71d
+tour     480    1    1     0       0           1      0          0     1         1   30:f,60:f,90:d,120:d,150:t,180:t,210:c,240:c,270:w,300:w,330:g,360:g,390:h,400:h,410:p,415:n,420:n,425:p,430:2,440:v,450:4,455:v,460:3,470:1 b47fc612ea7d9af9
+precise2 24     4    2     1       0           1      0          0     1         1   0:h    1330b2e7d813a6e5
+scale2   24     4    2     0       0           1      0          0     1         1   0:h    56e562da7c204c2e
+persp    24     4    1     0       1           1      0          0     1         1   0:h    dd8c9836cdb1bede
+nodither 24     4    1     0       0           0      0          0     1         1   0:h    fa30395d2223a36b
+nocache  24     4    1     0       0           1      0          0     0         1   0:h    facbb4544014bdb2
+wide     24     4    1     0       0           1      1          0     1         1   0:h    aa05f226cde1151d
+float    24     4    1     0       0           1      0          1     1         1   0:h    234c05f1f32282ec
+nofog    24     4    1     0       0           1      0          0     1         0   0:h    009df57de849e511
+short    24     4    1     0       0           1      0          0     1         1   0:h    5f536f9d83c1bf31
+all3     24     16   3     1       1           0      1          1     0         0   -      aaaf33725c920ad1

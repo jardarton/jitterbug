@@ -1,0 +1,27 @@
+# The console results kept here as references (docs/testing.md, "Open-question
+# lists and console probe results"), each bound
+# to the fixture of its list. One result a line, fields separated by spaces:
+#
+#   NAME      the result is NAME.jbpr here
+#   TABLE     ps1-tests: of the program NAME of ../fixtures.txt (its list,
+#             its pass, where its list is: repo or fetched); open: of the
+#             list NAME of ../open/fixtures.txt
+#   EXCLUDE   optional, three fields: an exclusion file here, its number of
+#             pixels and the FNV-1a of their indices (jbc_exclusion_checksum),
+#             as in ../fixtures.txt. None by default: an exclusion of a
+#             dump (lines.exclude) is not one of a probe result, which has
+#             no unset pixel; one here would need its own entry in
+#             docs/conformance.md
+#
+# The runner (conformance.c --probe-fixtures fixtures.txt --fixture NAME,
+# tests/CMakeLists.txt, "Hardware probe", conformance_probe_NAME) reads the
+# line itself, and the fixture's line in the table it names: it takes the
+# result only if it is of exactly that list (name, length, CRC-32), played
+# to that pass with the two-pass window and steady through it, from a
+# console, complete, sound and clean (no wait, DMA or vertical blank that
+# timed out; every check of the list evaluated), and compares all 16 bits
+# of VRAM, every word read and each check's outcome (../FORMAT.md, "Using a
+# probe result as a reference"). A .jbpr or .exclude file here that no line
+# names stops the configuration.
+#
+# No console has run the probe yet: no lines.

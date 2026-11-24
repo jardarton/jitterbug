@@ -1,0 +1,9 @@
+# sprite_scene.c's runs: name, then the FNV-1a 64 hash of every frame's
+# jb_frame bytes and the 1x VRAM at the end. Every build must give these.
+# After a deliberate change: test_sprite_scene sprite_scene.txt --print
+base c7775a54376cef36
+scale2 b2262760e410436a
+scale3 88b8af6bac80252c
+nodither b4405967ec0f734d
+wide c17827bf1ecf0210
+big 9465054d19e2a6cd

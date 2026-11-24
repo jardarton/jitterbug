@@ -1,0 +1,46 @@
+# What each conformance test plays and must see (FORMAT.md,
+# "Fixture tables"). The runner (conformance.c --fixtures fixtures.txt
+# --fixture NAME) reads a
+# program's whole identity, its reference and its exclusion from its line
+# here and from nowhere else; CMakeLists.txt here checks the table and
+# makes the tests. One program a line, fields separated by spaces:
+#
+#   NAME      the program (gpu/NAME), as in tools/conformance-record/programs.txt
+#   WHERE     repo: the list is tests/conformance/NAME.jbc and the dump or log
+#             third_party/ps1-tests/gpu/NAME; fetched: neither is in the
+#             repository (third_party/ps1-tests/README.md says why), both
+#             come from the flake's conformance-lists output, passed as the
+#             CMake variable JB_CONFORMANCE_FETCHED
+#   REFERENCE dump (the console's VRAM) or log (its EXPECT ops)
+#   PASSES    the pass of the main loop after which VRAM is compared, the
+#             first pass counted (FORMAT.md, "Playing a list"); the two
+#             passes after it must not change VRAM
+#   EXPECTS   the number of EXPECT ops
+#   WORDS     the list's size in 32-bit words
+#   CHECKSUM  FNV-1a, 64 bits, of the list's bytes (jbc_checksum)
+#   REFSUM    FNV-1a, 64 bits, of the reference file's bytes: the dump's
+#             vram.png or the log's psx.log (jbc_file_checksum); the runner
+#             refuses any other file in its place before comparing anything
+#   EXCLUDE   optional, three fields: the exclusion file, its number of
+#             pixels and the FNV-1a of their indices (jbc_exclusion_checksum);
+#             the only pixels of any dump not compared, each set described
+#             in docs/conformance.md ("Excluded pixels (`lines`)")
+#
+# The lists are what tools/conformance-record makes from the pinned
+# sources, so a re-recording that changes a list changes its line here.
+# NAME, WORDS, CHECKSUM, REFERENCE and REFSUM are the recorder's
+# fixtures-identity.txt, which the flake check conformance-record compares
+# with these lines, fetched programs included.
+triangle             repo    dump 1 0  231    7ac8ae2f252017e3 c5af46d9b0191449
+quad                 repo    dump 1 0  316    5aac3474f615c6dd 472abf9b9950de2f
+lines                repo    dump 1 0  4898   0e558ab30b43cb0a bb8d5f99bf4a0d5d lines.exclude 64 8dac3f054012b465
+rectangles           fetched dump 6 0  10110  42a8c753f899fe03 9cceb584fba1e0ed
+transparency         repo    dump 1 0  2015   b3cc9934d4c7a09b 9b6607312486f460
+uv-interpolation     repo    dump 1 0  9622   4c013c194279a10b b458177305280488
+clipping             repo    dump 1 0  332    357dbcc57f62eb1a 4266c80f291dcb3a
+texture-flip         repo    dump 1 0  524512 219634c8303ea636 af134b56631a4e4d
+texture-overflow     fetched dump 1 0  16589  b9df7f9b40ed07bb 3a7f042fb6e5cb0c
+clut-cache           repo    dump 1 0  2756   db852b116de72493 efdc1651b890309e
+vram-to-vram-overlap fetched dump 1 0  236638 04a7b63bee66745f 46300161e4082a85
+mask-bit             repo    log  1 5  493    67a419839f6e98b8 ccfa6ba800604ade
+gp0-e1               repo    log  1 10 690    5422c1e5bba8315e 2a6f69193620ba67

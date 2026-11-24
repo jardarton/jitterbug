@@ -1,0 +1,11 @@
+# Pixels of gpu/lines' dump that are not compared (FORMAT.md,
+# "Exclusions"; docs/conformance.md, "Excluded pixels (`lines`)").
+#
+# gouraudMultiLine sets the colours of vertices 0, 1 and 2 (setRGB2 twice)
+# and never vertex 3's, so the console drew the last segment of each
+# Gouraud polyline towards whatever its stack held there; the recorder
+# sends 0 (docs/testing.md, "Conformance tests and the recorder").
+# Each run is the segment from vertex 2 at (x + 32, 172) back to vertex 3
+# at (x, 140) without its first pixel, which has vertex 2's colour.
+run 181 171 -1 -1 32  last segment of the opaque Gouraud polyline: vertex 3's colour never set
+run 241 171 -1 -1 32  last segment of the semi-transparent Gouraud polyline: vertex 3's colour never set

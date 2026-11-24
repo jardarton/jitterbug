@@ -1,0 +1,9 @@
+# LeakSanitizer suppressions for the Vulkan tests.
+#
+# Allocations made inside the Vulkan loader or the driver it loads. lavapipe
+# keeps a little memory (128 bytes in vkCreateInstance, Mesa 26) after
+# vkDestroyInstance. The driver is unloaded before the report, so its own
+# frames have no name; the loader's frame below them is what matches.
+# Our own allocations never have the loader in their stack, so they are
+# still reported.
+leak:libvulkan.so

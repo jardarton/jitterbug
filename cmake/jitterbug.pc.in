@@ -1,0 +1,10 @@
+prefix=@JB_PC_PREFIX@
+libdir=@JB_PC_LIBDIR@
+includedir=@JB_PC_INCLUDEDIR@
+
+Name: jitterbug
+Description: A C library that renders like the PlayStation GPU
+Version: @PROJECT_VERSION@
+Libs: -L"${libdir}" -ljitterbug
+Libs.private: @JB_PC_LIBS_PRIVATE@
+Cflags: -I"${includedir}"@JB_PC_CFLAGS@

@@ -1,0 +1,8 @@
+# Materials for box.obj
+newmtl stone
+Kd 1.0 1.0 1.0
+map_Kd rocks.png
+
+newmtl glass
+Kd 0.4 0.7 0.9
+d 0.5

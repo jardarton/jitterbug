@@ -1,0 +1,25 @@
+# What each open-question list is (docs/testing.md, "Open-question lists and
+# console probe results"; ../FORMAT.md, "Fixture tables"), in the format of
+# ../fixtures.txt, so
+# that the hardware probe's results of them are bound to them as the
+# ps1-tests programs' are (docs/probe.md, "Turning console dumps into
+# golden references"). One list a line:
+#
+#   NAME      the list is NAME.jbc here, named fuzz/NAME in its header
+#   WHERE     open
+#   REFERENCE probe: no console result exists; a console's probe result
+#             (../probe/NAME.jbpr) will be the reference
+#   PASSES    0: none of them has a main loop
+#   EXPECTS   0
+#   WORDS     the list's size in 32-bit words
+#   CHECKSUM  FNV-1a, 64 bits, of the list's bytes (jbc_checksum)
+#
+# tests/CMakeLists.txt ("Hardware probe") reads it and stops the
+# configuration when a list here has no line or a line has no list.
+dither-semi              open probe 0 0 94 66155f7a6c482012
+gouraud-texture-pairs    open probe 0 0 94 b7899361482d3ec7
+modulated-semi-quarter   open probe 0 0 117 d1bd61ef5a09a997
+modulated-semi-saturate  open probe 0 0 108 3be33378751dbc4a
+offset-wrap              open probe 0 0 86 d72c4faad795ffd9
+quad-order               open probe 0 0 85 e480426bad81b88f
+raw-gouraud-dither       open probe 0 0 234 6e363f2451b64e29

@@ -1,0 +1,10 @@
+# friendly_scene.c's runs: name, then the FNV-1a 64 hash of every frame's
+# jb_frame bytes and the 1x VRAM at the end. Every build must give these.
+# After a deliberate change: test_friendly_scene friendly_scene.txt --print
+base 2438b65227906422
+scale2 cf335b00588d5e80
+scale3 8c00224b36f7ebf8
+precise2 169ba023604ab671
+nodither 69f9ec58b5b73399
+wide ee922724c7d19e22
+big 22d17585789d66f1

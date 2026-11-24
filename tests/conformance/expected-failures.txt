@@ -1,0 +1,5 @@
+# Programs whose conformance test is expected to differ from the console
+# today, one a line (tests/conformance/CMakeLists.txt). Each has an entry
+# in docs/conformance.md, "Rules fitted from the console results". A
+# program listed here that matches fails
+# its test: take it off the list in the commit that fixes it.

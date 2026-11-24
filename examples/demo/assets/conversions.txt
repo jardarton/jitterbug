@@ -1,0 +1,19 @@
+# The demo's files and how each is made (../README.md, "How the assets
+# are made"): one a line,
+#   OUTPUT TOOL ARGS...
+# run in this directory with OUTPUT's path appended to ARGS. The textures
+# come first: the meshes bind the textures made above them. The demo
+# embeds every OUTPUT, in this order (demo_files.c, made by embed.cmake).
+sand.jbt       jb-tex --depth 4 sources/sand.png
+grass.jbt      jb-tex --depth 4 sources/grass.png
+rock.jbt       jb-tex --depth 4 sources/rock.png
+water.jbt      jb-tex --depth 4 --repeat --frame sources/water01.png --frame sources/water02.png --frame sources/water03.png --frame sources/water04.png --frame sources/water05.png --frame sources/water06.png --frame sources/water07.png --frame sources/water08.png --frame sources/water09.png --frame sources/water10.png --frame sources/water11.png --frame sources/water12.png --frame sources/water13.png --frame sources/water14.png sources/water00.png
+cloud.jbt      jb-tex --depth 4 sources/cloud.png
+glow.jbt       jb-tex --depth 4 sources/glow.png
+tower.jbt      jb-tex --depth 15 sources/tower.png
+planks.jbt     jb-tex --depth 4 sources/planks.png
+tree.jbm       jb-mesh sources/tree.obj
+stone.jbm      jb-mesh --texture rock=rock.jbt sources/stone.obj
+lighthouse.jbm jb-mesh --texture paint=tower.jbt --unlit lamp sources/lighthouse.obj
+beam.jbm       jb-mesh --blend beam=add --unlit beam --double-sided beam sources/beam.obj
+pier.jbm       jb-mesh --texture planks=planks.jbt sources/pier.obj

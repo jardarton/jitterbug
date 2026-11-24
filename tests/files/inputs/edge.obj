@@ -1,0 +1,10 @@
+# A strip over four repeats, made by make-inputs.py
+v -100 0 -20
+v -100 0 20
+v 100 0 20
+v 100 0 -20
+vt -0.000001 1
+vt -0.000001 0
+vt 4 0
+vt 4 1
+f 1/1 2/2 3/3 4/4

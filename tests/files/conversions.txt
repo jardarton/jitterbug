@@ -1,0 +1,25 @@
+# The converters' pinned outputs (docs/testing.md, "File, converter and loader
+# tests"): one conversion a line,
+#   OUTPUT TOOL ARGS...
+# run in tests/files with OUTPUT's path appended to ARGS; the result must be
+# byte for byte expected/OUTPUT. In order: jb-mesh reads textures made by
+# the lines before it.
+rocks8.jbt       jb-tex inputs/rocks.png
+rocks8d.jbt      jb-tex --dither inputs/rocks.png
+rocks4.jbt       jb-tex --depth 4 inputs/rocks.png
+rocks4d.jbt      jb-tex --depth 4 --dither inputs/rocks.png
+tiles4.jbt       jb-tex --depth 4 inputs/tiles.png
+sky15.jbt        jb-tex --depth 15 inputs/sky.png
+sky15d.jbt       jb-tex --depth 15 --dither inputs/sky.png
+water4.jbt       jb-tex --depth 4 --frame inputs/water1.png --frame inputs/water2.png inputs/water0.png
+bricks8r.jbt     jb-tex --repeat inputs/bricks.png
+box.jbm          jb-mesh --texture stone=expected/rocks8.jbt inputs/box.obj
+box-scaled.jbm   jb-mesh --fit 1000 --texture stone=inputs/rocks.png --blend glass=add --double-sided * inputs/box.obj
+box-flat.jbm     jb-mesh --no-normals --scale 2.5 --unlit glass --raw stone --texture stone=expected/rocks4.jbt inputs/box.obj
+hexagon.jbm      jb-mesh inputs/hexagon.obj
+hexagon-plain.jbm jb-mesh --no-colors --blend default=quarter inputs/hexagon.obj
+pyramid.jbm      jb-mesh --texture sides=expected/bricks8r.jbt inputs/pyramid.gltf
+pyramid-glb.jbm  jb-mesh --texture sides=expected/bricks8r.jbt inputs/pyramid.glb
+pyramid-png.jbm  jb-mesh --texture sides=inputs/bricks.png --lit base --single-sided sides inputs/pyramid.gltf
+tiled.jbm        jb-mesh --texture default=expected/bricks8r.jbt inputs/tiled.obj
+edge.jbm         jb-mesh --texture default=expected/bricks8r.jbt inputs/edge.obj

@@ -1,0 +1,19 @@
+# models.mtl: made by examples/demo/assets/make-sources.c
+newmtl foliage
+Kd 1.000000000 1.000000000 1.000000000
+newmtl rock
+Kd 1.375 1.328125 1.25
+newmtl paint
+Kd 1 1 1
+newmtl gallery
+Kd 0.352941176 0.360784314 0.376470588
+newmtl lamp
+Kd 1.000000000 0.925490196 0.627450980
+newmtl roof
+Kd 0.588235294 0.117647059 0.101960784
+newmtl beam
+Kd 1.000000000 1.000000000 1.000000000
+newmtl planks
+Kd 1 1 1
+newmtl post
+Kd 0.329411765 0.235294118 0.156862745

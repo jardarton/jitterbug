@@ -1,0 +1,10 @@
+# draw3d_scene.c's runs: name, then the FNV-1a 64 hash of every frame's
+# jb_frame bytes and the 1x VRAM at the end. Every build must give these.
+# After a deliberate change: test_draw3d_scene draw3d_scene.txt --print
+gte1 f10912fbccfc2596
+gte2 53f7f247435b5354
+gte2precise bd9295c7000a6d48
+gte1perspective 2843c901b0d33bf7
+gte2both c4016675e5e72f28
+float1 5f26bb3a058f22e1
+float2both e7f411b24352ff66

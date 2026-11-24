@@ -1,0 +1,16 @@
+# find_package(jitterbug 0.1 REQUIRED), then
+# target_link_libraries(app PRIVATE jitterbug::jitterbug).
+@PACKAGE_INIT@
+
+# A static library carries its own dependencies: the thread library when
+# it was built with JB_THREADS (a shared one has it linked in already).
+# libm needs no finding.
+set(jitterbug_SHARED @JB_PKG_SHARED@)
+set(jitterbug_THREADS @JB_THREADS@)
+if(NOT jitterbug_SHARED AND jitterbug_THREADS)
+  include(CMakeFindDependencyMacro)
+  find_dependency(Threads)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/jitterbugTargets.cmake")
+check_required_components(jitterbug)

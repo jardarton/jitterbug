@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jitterbug: first-light</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #101014; color: #d8d8e0;
+         font: 15px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 12px; font-weight: 600; }
+  #screen { display: block; background: #000; margin: 0 auto 12px;
+            image-rendering: pixelated; image-rendering: crisp-edges; }
+  #controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  button { background: #24242c; color: inherit; border: 1px solid #44444f;
+           border-radius: 4px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  button[aria-pressed="true"] { background: #2f5f3a; border-color: #5fae6f; }
+  kbd { font: 12px ui-monospace, monospace; opacity: 0.75; }
+  #status { text-align: center; margin: 10px 0 0; font: 13px ui-monospace, monospace;
+            min-height: 1.4em; }
+  p.note { max-width: 46em; margin: 16px auto 0; font-size: 13px; opacity: 0.8; }
+</style>
+</head>
+<body>
+<h1>jitterbug: first-light</h1>
+<canvas id="screen" width="320" height="240"></canvas>
+<div id="controls">
+  <button data-scale="1">1x <kbd>1</kbd></button>
+  <button data-scale="2">2x <kbd>2</kbd></button>
+  <button data-scale="3">3x <kbd>3</kbd></button>
+  <button data-scale="4">4x <kbd>4</kbd></button>
+  <button data-switch="precise">Precise vertices <kbd>V</kbd></button>
+  <button data-switch="perspective">Perspective-correct <kbd>T</kbd></button>
+  <button data-switch="dither">Dithering <kbd>D</kbd></button>
+  <button data-switch="widescreen">Widescreen <kbd>W</kbd></button>
+  <button data-switch="float">Float geometry <kbd>G</kbd></button>
+  <button data-switch="clutcache">CLUT cache <kbd>C</kbd></button>
+  <button id="pause">Pause <kbd>Space</kbd></button>
+</div>
+<p id="status">loading</p>
+<p class="note">Drawn by jitterbug, a C library that renders like the PlayStation GPU,
+compiled to WebAssembly: every pixel comes from the same code as the native build
+(integer arithmetic, and the library's own float maths, which gives the same bits
+everywhere). Precise vertices only show above 1x; dithering only at 1x; the CLUT cache
+changes nothing here but the panel's light (the palette is rewritten with
+<code>jb_palette_write</code>, which clears it).
+Check mode: <code>?frames=300</code> (with <code>&amp;scale=</code>,
+<code>&amp;precise=</code>, <code>&amp;perspective=</code>, <code>&amp;dither=</code>,
+<code>&amp;widescreen=</code>, <code>&amp;float=</code>, <code>&amp;clutcache=</code>)
+draws that many frames as fast as it can and shows their hash.</p>
+
+<script src="first-light.js"></script>
+<script>
+"use strict";
+
+// FNV-1a 64 over bytes, as main_headless.c computes it, in four 16-bit
+// limbs (h[0] lowest) so that it needs no BigInt in the inner loop.
+function fnv1a64(h, bytes) {
+  let h0 = h[0], h1 = h[1], h2 = h[2], h3 = h[3];
+  for (let i = 0; i < bytes.length; i++) {
+    h0 ^= bytes[i];
+    // h *= 0x100000001b3: h * 0x1b3, plus h << 40 (h0, h1 into limbs 2, 3).
+    const t0 = h0 * 0x1b3, t1 = h1 * 0x1b3;
+    const t2 = h2 * 0x1b3 + h0 * 0x100, t3 = h3 * 0x1b3 + h1 * 0x100;
+    h0 = t0 & 0xffff;
+    const s1 = t1 + (t0 >>> 16);
+    h1 = s1 & 0xffff;
+    const s2 = t2 + (s1 >>> 16);
+    h2 = s2 & 0xffff;
+    h3 = (t3 + (s2 >>> 16)) & 0xffff;
+  }
+  h[0] = h0; h[1] = h1; h[2] = h2; h[3] = h3;
+}
+const FNV_BASIS = [0x2325, 0x8422, 0x9ce4, 0xcbf2];
+const hex = h => h.slice().reverse().map(x => x.toString(16).padStart(4, "0")).join("");
+
+const canvas = document.getElementById("screen");
+const ctx2d = canvas.getContext("2d");
+const status = document.getElementById("status");
+const params = new URLSearchParams(location.search);
+const flag = (name, def) => params.has(name) ? Number(params.get(name)) !== 0 : def;
+const sw = {
+  scale: Math.min(4, Math.max(1, Number(params.get("scale")) || 1)),
+  precise: flag("precise", false),
+  perspective: flag("perspective", false),
+  dither: flag("dither", true),
+  widescreen: flag("widescreen", false),
+  float: flag("float", false),
+  clutcache: flag("clutcache", true),
+};
+// The switches in the order the module's functions take them.
+const args = () => [sw.scale, +sw.precise, +sw.perspective, +sw.dither, +sw.widescreen,
+  +sw.float, +sw.clutcache];
+
+// The frame's pixels, in the module's memory, onto the canvas. The canvas
+// is the frame's size; CSS shows it as large as a whole multiple fits.
+function show(m, ptr) {
+  const w = m._fl_web_width(), h = m._fl_web_height();
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    fit();
+  }
+  // HEAPU8 is looked up each time: the memory may have grown.
+  const bytes = new Uint8ClampedArray(m.HEAPU8.buffer, ptr, w * h * 4);
+  ctx2d.putImageData(new ImageData(bytes, w, h), 0, 0);
+  return bytes;
+}
+
+// The canvas's CSS size: a whole multiple of the frame if one fits, else
+// of the frame's 1x size (320 x 240, or 427 x 240 in widescreen: frames
+// are 240 lines at every scale), else, in a very small window, the 1x
+// size shrunk to fit, keeping the frame's shape.
+function fit() {
+  const aspect = canvas.width / canvas.height;
+  const base = canvas.width * 240 / canvas.height; // the frame's 1x width
+  const room = Math.min(window.innerWidth - 32, (window.innerHeight - 140) * aspect);
+  const k = Math.floor(room / canvas.width), k1 = Math.floor(room / base);
+  const css = k >= 1 ? canvas.width * k : k1 >= 1 ? base * k1 : Math.max(room, 1);
+  canvas.style.width = css + "px";
+  canvas.style.height = css / aspect + "px";
+}
+window.addEventListener("resize", fit);
+
+function check(m, frames) {
+  const h = FNV_BASIS.slice();
+  const t0 = performance.now();
+  for (let f = 0; f < frames; f++) {
+    const ptr = m._fl_web_draw(f);
+    if (!ptr) throw new Error("frame " + f + " failed");
+    fnv1a64(h, show(m, ptr));
+  }
+  const text = "all " + frames + " frames (scale " + sw.scale + ", precise " + +sw.precise +
+    ", perspective " + +sw.perspective + ", dither " + +sw.dither + ", widescreen " +
+    +sw.widescreen + ", float " + +sw.float + ", CLUT cache " + +sw.clutcache + "): " + hex(h);
+  status.textContent = text + "  [" + Math.round(performance.now() - t0) + " ms]";
+  document.title = "first-light " + hex(h);
+}
+
+createFirstLight().then(m => {
+  // The switches the scene has; a refused change (a scale without memory,
+  // say) puts the controls back to them and says so until the next change.
+  let applied = Object.assign({}, sw), notice = "";
+  const apply = () => {
+    const r = m._fl_web_set_switches(...args());
+    if (r === 0) {
+      applied = Object.assign({}, sw);
+      notice = "";
+    } else {
+      Object.assign(sw, applied);
+      notice = "  (switches refused: jb_result " + r + ")";
+    }
+    for (const b of document.querySelectorAll("[data-scale]"))
+      b.setAttribute("aria-pressed", String(Number(b.dataset.scale) === sw.scale));
+    for (const b of document.querySelectorAll("[data-switch]"))
+      b.setAttribute("aria-pressed", String(sw[b.dataset.switch]));
+    document.getElementById("pause").setAttribute("aria-pressed", String(paused));
+    status.textContent = "frame " + frame + notice;
+    dirty = true;
+  };
+  let frame = 0, paused = false, dirty = true, last = null, acc = 0;
+
+  const r = m._fl_web_init(...args());
+  if (r !== 0) {
+    status.textContent = "could not start (jb_result " + r + ")";
+    return;
+  }
+  if (params.has("frames")) {
+    check(m, Number(params.get("frames")));
+    return;
+  }
+
+  document.getElementById("controls").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.scale) sw.scale = Number(b.dataset.scale);
+    else if (b.dataset.switch) sw[b.dataset.switch] = !sw[b.dataset.switch];
+    else if (b.id === "pause") paused = !paused;
+    apply();
+  });
+  window.addEventListener("keydown", e => {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k >= "1" && k <= "4") sw.scale = Number(k);
+    else if (k === "v") sw.precise = !sw.precise;
+    else if (k === "t") sw.perspective = !sw.perspective;
+    else if (k === "d") sw.dither = !sw.dither;
+    else if (k === "w") sw.widescreen = !sw.widescreen;
+    else if (k === "g") sw.float = !sw.float;
+    else if (k === "c") sw.clutcache = !sw.clutcache;
+    else if (k === " ") paused = !paused;
+    else if (k === "arrowright" && paused) frame++;
+    else return;
+    e.preventDefault();
+    apply();
+  });
+  apply();
+
+  // One scene frame per 1/60 s (an accumulator over the animation clock),
+  // drawn when it changes.
+  const STEP = 1000 / 60;
+  function tick(t) {
+    if (last !== null) acc = Math.min(acc + t - last, 4 * STEP);
+    last = t;
+    for (; acc >= STEP; acc -= STEP)
+      if (!paused) { frame++; dirty = true; }
+    if (dirty) {
+      // A frame that fails is reported and tried again; the loop goes on,
+      // so a later change of switches can draw again.
+      const ptr = m._fl_web_draw(frame);
+      if (!ptr) {
+        status.textContent = "frame " + frame + " failed" + notice;
+      } else {
+        show(m, ptr);
+        status.textContent = "frame " + frame + (paused ? " (paused)" : "") + notice;
+        dirty = false;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>
+</body>
+</html>

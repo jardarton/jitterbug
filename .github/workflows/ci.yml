@@ -24,7 +24,10 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           install_url: https://releases.nixos.org/nix/nix-2.34.9/install
-      - run: nix --version && nix build -L --no-link .#checks.x86_64-linux.clang .#checks.x86_64-linux.wasm
+      # Evaluating the flake overflows the runner's default stack.
+      - run: |
+          ulimit -s unlimited
+          nix build -L --no-link .#checks.x86_64-linux.clang .#checks.x86_64-linux.wasm
 
   pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -42,6 +45,7 @@ jobs:
         with:
           install_url: https://releases.nixos.org/nix/nix-2.34.9/install
       - run: |
+          ulimit -s unlimited
           nix build -L .#demo-web
           cp -rL result site
           chmod -R u+w site

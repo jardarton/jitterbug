@@ -84,7 +84,7 @@ Fetch jitterbug directly from CMake with `FetchContent`:
 include(FetchContent)
 FetchContent_Declare(jitterbug
   GIT_REPOSITORY https://github.com/jardarton/jitterbug.git
-  GIT_TAG v0.1.0
+  GIT_TAG v0.1.1
 )
 FetchContent_MakeAvailable(jitterbug)
 

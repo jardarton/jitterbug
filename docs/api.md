@@ -17,7 +17,7 @@ Both levels work on the same `jb_context`. For example, [examples/demo](../examp
 
 Header section: `Results`.
 
-- `JB_VERSION_MAJOR`, `JB_VERSION_MINOR`, `JB_VERSION_PATCH`, `JB_VERSION` — compile-time version macros (`0.1.0`).
+- `JB_VERSION_MAJOR`, `JB_VERSION_MINOR`, `JB_VERSION_PATCH`, `JB_VERSION` — compile-time version macros (`0.1.1`).
 - `jb_version()`, `jb_version_string()` — runtime version check.
 - `jb_result` — `JB_OK`, `JB_ERROR_INVALID_ARGUMENT`, `JB_ERROR_OUT_OF_MEMORY`, `JB_ERROR_UNSUPPORTED`. `jb_result_string(r)` gives a short constant string.
 - `jb_error_string(jb)` — detail of the most recent failed call on `jb`.

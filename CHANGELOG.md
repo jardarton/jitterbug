@@ -2,7 +2,9 @@
 
 Notable changes to jitterbug. There is no ABI stability guarantee before 1.0.
 
-## Unreleased
+## 0.1.1 — 2026-11-25
+
+Fixes and checks that close the known gaps in 0.1.0; no API changes.
 
 - **`jb-mesh` OBJ reader ([docs/tools.md](docs/tools.md)):** faces of 5 to 1024 corners are now cut into triangles by ear clipping along the dominant axis of the Newell normal rather than fanned from the first corner, handling concave faces while keeping the previous fan on strictly convex ones (triangles and quads bypass ear clipping and its area and normal checks; collinear corners can change the triangulation). Faces of 5 to 1024 corners with zero area or a non-finite normal (`a face of N corners with no area`), uncuttable 5–1024-corner faces (`a face of N corners that cannot be cut into triangles (does it cross itself?)`), faces with more than 1024 corners, and empty `usemtl`/`newmtl` names are refused with `path:line`. Backslash line continuations now work before CRLF as well as LF; `#` on `usemtl`, `newmtl` and `mtllib` lines starts a comment only when preceded by a space or tab and followed by a space, a tab or the end of the line (keeping names such as `Material #1` and `mat#1` whole; only numeric directives and `f` stop at any `#` beginning a token, `map_Kd` only records that a texture was mentioned, and unknown directives are ignored).
 - **Browser checks in `nix flake check` ([docs/testing.md](docs/testing.md)):** `checks.<system>.browser-demo` and `checks.<system>.browser-first-light` now run `examples/*/web/check-browser.mjs` in headless Chromium in the Nix sandbox on `x86_64-linux` and `aarch64-linux` (not in hosted CI). The scripts check frame advancement by default (any non-empty `JB_CHECK_FPS` value, e.g. `JB_CHECK_FPS=1`, adds a check expecting 30–70 frames of advance between two samples about a second apart when run by hand) and fail cleanly if Chromium or its DevTools connection drops.

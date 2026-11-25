@@ -76,7 +76,7 @@ Add jitterbug to a CMake project with `FetchContent`:
 include(FetchContent)
 FetchContent_Declare(jitterbug
   GIT_REPOSITORY https://github.com/jardarton/jitterbug.git
-  GIT_TAG v0.1.0
+  GIT_TAG v0.1.1
 )
 FetchContent_MakeAvailable(jitterbug)
 
@@ -98,7 +98,7 @@ What jitterbug does not do, by design or not yet (planned work is tracked in [to
 
 ## Status
 
-**0.1.0** ships the software backend (1x–8x), both API levels, `.jbt`/`.jbm` asset loaders, the `jb-tex`, `jb-mesh` and `jb-bench` tools, and the `first-light` and `demo` examples, with no ABI stability promise before 1.0. See [CHANGELOG.md](CHANGELOG.md) for release details and [todo.md](todo.md) for the post-0.1 roadmap.
+**0.1.1** ships the software backend (1x–8x), both API levels, `.jbt`/`.jbm` asset loaders, the `jb-tex`, `jb-mesh` and `jb-bench` tools, and the `first-light` and `demo` examples, with no ABI stability promise before 1.0. See [CHANGELOG.md](CHANGELOG.md) for release details and [todo.md](todo.md) for the post-0.1 roadmap.
 
 ## Documentation
 

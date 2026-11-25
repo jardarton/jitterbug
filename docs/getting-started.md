@@ -74,9 +74,23 @@ For a static library install (adds `-lm` and the thread library from `Libs.priva
 cc -std=c99 main.c $(pkg-config --cflags --libs --static jitterbug) -o my_game
 ```
 
-### CMake `add_subdirectory` (or `FetchContent`)
+### CMake `FetchContent` or `add_subdirectory`
 
-Drop the jitterbug source tree into your repository (or fetch it with `FetchContent`) and add it as a subproject:
+Fetch jitterbug directly from CMake with `FetchContent`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(jitterbug
+  GIT_REPOSITORY https://github.com/jardarton/jitterbug.git
+  GIT_TAG v0.1.0
+)
+FetchContent_MakeAvailable(jitterbug)
+
+add_executable(my_game main.c)
+target_link_libraries(my_game PRIVATE jitterbug::jitterbug)
+```
+
+Or drop the jitterbug source tree into your repository and add it as a subproject:
 
 ```cmake
 add_subdirectory(third_party/jitterbug)

@@ -15,7 +15,7 @@
   <strong><a href="https://jardarton.github.io/jitterbug/">Try the live WebAssembly demo</a></strong> — fly over a sunset archipelago in your browser and toggle every PlayStation GPU artefact live.
 </p>
 
-**jitterbug** is a standalone C library that renders 3D and 2D graphics the way the original PlayStation's GPU did, for new games and homebrew. It is a renderer, not an engine: it hands back an RGBA8 frame buffer so you bring your own game loop, window, input and audio — or drop it straight into SDL, raylib or a browser canvas.
+**jitterbug** is a standalone C99/C11 PlayStation 1 (PS1 / PSX) software renderer for new PS1-style games, homebrew, and native ports or clean-room reimplementations. It is a renderer, not an engine: it renders headlessly to an RGBA8 frame buffer with no GPU or window required, so you bring your own game loop, window, input and audio — or drop it straight into SDL3, raylib, a browser canvas or automated visual tests.
 
 ## Why jitterbug
 
@@ -23,7 +23,12 @@
 - **Classic artefacts on runtime switches.** Toggle internal resolution (1x–8x), sub-pixel vertices, perspective-correct texturing, 4x4 dithering, the CLUT cache, 16:9 widescreen and fixed-point GTE vs float geometry on the fly without recreating the context (15-bit colour, shared VRAM and depth sorting are part of the renderer in 0.1; [docs/api.md](docs/api.md)).
 - **The real VRAM.** Textures, palettes and display buffers share one 1024x512 16-bit VRAM, so palette animation, render-to-texture and VRAM-to-VRAM copies behave as on the console ([docs/design.md](docs/design.md)).
 - **Same pixels everywhere.** An integer-only console path paired with deterministic IEEE 754 maths (`-ffp-contract=off`) produces identical frame hashes across GCC and Clang, x86-64, aarch64 and wasm32, and from 1 to 16 rasterising threads ([docs/determinism.md](docs/determinism.md)).
-- **Two API levels, one C99 header, no dependencies.** Use the friendly 3D/2D layer (double-buffered frames, automatic VRAM placement, camera, lights, fog, clipping, meshes, sprites and an original 8x8 bitmap font) or drive the console's GP0/GP1 ports, VRAM and GTE directly through [include/jitterbug.h](include/jitterbug.h) (strict C99 and C++11, C11 core, no third-party runtime dependencies, no global state, WebAssembly built in).
+- **One C99 header, no dependencies.** Strict C99 and C++11 public header ([include/jitterbug.h](include/jitterbug.h)), C11 core, no third-party runtime dependencies, no global state, and WebAssembly built in.
+
+## Two API levels
+
+- **High-level 3D/2D API (for new PS1-style games):** double-buffered frames, automatic VRAM placement, camera, lights, fog, clipping, `.jbm` meshes, `.jbt` textures, sprites, an original 8x8 bitmap font, and live switches for 1x–8x, widescreen, sub-pixel vertices and perspective-correct texturing.
+- **Console-level API (for ports, static recompilations, reimplementations and homebrew):** direct GP0/GP1 command words, GPUREAD/GPUSTAT, 1024x512 16-bit VRAM transfers, ordering tables and fixed-point GTE (COP2) operations.
 
 At 1x, jitterbug reproduces the real-console results published by [ps1-tests](https://github.com/JaCzekanski/ps1-tests) for 13 named GPU programs (11 VRAM dumps compared pixel for pixel on the 15 colour bits they carry, excluding 64 uninitialised-colour pixels in `lines`, plus 2 console logs) and 1150 GTE cases; our own hardware probe ([docs/probe.md](docs/probe.md)) has not yet been run on a console, and scaled output (2x–8x) is faithful to the console's rules rather than exact ([docs/conformance.md](docs/conformance.md)).
 
@@ -61,7 +66,24 @@ int main(void)
 }
 ```
 
-To learn the library, start with the examples ([the demo](examples/demo/README.md) runs [live on the web](https://jardarton.github.io/jitterbug/), and [first-light](examples/first-light/README.md) is a compact 3D scene), read the [API tour](docs/api.md), and keep [include/jitterbug.h](include/jitterbug.h) as the full reference. Install and link with CMake (`find_package(jitterbug 0.1)` or `add_subdirectory`), `pkg-config`, Nix or Emscripten — see [docs/getting-started.md](docs/getting-started.md).
+For a 3D lit scene see [first-light](examples/first-light/README.md) (and [the archipelago demo](examples/demo/README.md), which runs [live on the web](https://jardarton.github.io/jitterbug/)); for raw GP0/GP1/GTE packets and the rest of the library see the [API tour](docs/api.md) and [include/jitterbug.h](include/jitterbug.h).
+
+## Quick start
+
+Add jitterbug to a CMake project with `FetchContent`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(jitterbug
+  GIT_REPOSITORY https://github.com/jardarton/jitterbug.git
+  GIT_TAG v0.1.0
+)
+FetchContent_MakeAvailable(jitterbug)
+
+target_link_libraries(my_game PRIVATE jitterbug::jitterbug)
+```
+
+When built as a subproject, tests, tools, examples and install rules default to `OFF`, so only `jitterbug::jitterbug` is built. For `find_package(jitterbug 0.1)`, `add_subdirectory`, `pkg-config`, Nix and Emscripten (WebAssembly), see [docs/getting-started.md](docs/getting-started.md).
 
 ## Limitations
 
@@ -72,7 +94,7 @@ What jitterbug does not do, by design or not yet (planned work and known gaps ar
 - **15-bit drawing colour and shared VRAM.** Primitives draw in 15-bit colour (dithered at 1x) into one 1024x512 16-bit VRAM shared by display buffers, palettes and textures (up to 256x256 per page); true-colour drawing is not in 0.1.
 - **Software backend only in 0.1.** Rendering runs on the CPU at 1x–8x (with worker threads on native builds); a Vulkan backend (up to 16x) is planned after 0.1.
 - **Linux and WebAssembly only so far.** Tested on Linux (x86-64, plus arm64 cross-compiled under QEMU) and single-threaded WebAssembly (Emscripten); macOS and Windows are not yet built or tested.
-- **Not a console emulator.** Does not emulate a PlayStation CPU, BIOS, CD-ROM, DMA or GPU timing, and does not run existing PlayStation software.
+- **Not a console emulator.** Does not emulate a PlayStation CPU, BIOS, CD-ROM, DMA or GPU timing, and does not run existing PlayStation software — it is a rendering backend you link into your own C/C++ game or native port.
 
 ## Status
 

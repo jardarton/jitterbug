@@ -36,7 +36,7 @@ Not in 0.1.0, which ships only the CPU software backend (1x–8x, multi-threaded
 
 ## Which platforms are supported?
 
-In 0.1.0, jitterbug is built and tested on Linux x86-64, Linux arm64 (cross-compiled and tested under QEMU; no physical arm64 hardware has run the suite yet) and WebAssembly (Emscripten, single-threaded). macOS and Windows have not yet been built or tested — the core is plain C11 and builds without a thread library under `JB_THREADS=OFF`, so adding them requires a Win32 thread shim and MSVC fallbacks for GNU extensions (`__int128` and `__attribute__`). See [docs/determinism.md](docs/determinism.md) and [todo.md](todo.md).
+In 0.1.0, jitterbug is built and tested on Linux x86-64, Linux arm64 (cross-compiled under QEMU on x86-64 hosts; the native suite has also passed in an Apple silicon NixOS virtual machine, `aarch64-linux`) and WebAssembly (Emscripten, single-threaded). macOS and Windows have not yet been built or tested — the core is plain C11 and builds without a thread library under `JB_THREADS=OFF`, so adding them requires a Win32 thread shim and MSVC fallbacks for GNU extensions (`__int128` and `__attribute__`). See [docs/determinism.md](docs/determinism.md) and [todo.md](todo.md).
 
 ## What are the dependencies?
 

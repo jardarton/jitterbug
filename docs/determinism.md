@@ -76,6 +76,10 @@ Twelve sets of stored values live in the repository and are compared by every re
 | `package` | Builds and tests the source tarball offline with CMake alone, then verifies relocatable static, shared and wasm32 installs via `find_package`, `pkg-config` and `add_subdirectory` | x86-64, aarch64 |
 | `package-nix` | Consumes `packages.default` and the shared Nix build via `find_package` and `pkg-config` | x86-64, aarch64 |
 
+### Native `aarch64-linux` run on physical arm64 hardware
+
+In November 2026 (0.1.0 plus pending fixes), the full `aarch64-linux` flake check suite (`nix flake check -L` — `clang`, `gcc`, `shared`, `sanitize`, `O0`, `wasm`, `conformance-record`, `gte-cases`, `fuzz-diff`, `package` and `package-nix`) passed natively in an Apple silicon NixOS virtual machine (`aarch64-linux`), matching all checked-in hashes and passing the threaded determinism tests across thread counts 1–16. The native `clang` check was then rebuilt and run 20 times in a row (`nix build --rebuild .#checks.aarch64-linux.clang`) with no failure, to give intermittent memory-ordering bugs in `src/soft/workers.c` a chance to show under arm64's weak memory model. This covers one chip family (Apple silicon); routine checks on x86-64 hosts still use the `qemu-aarch64` cross builds above.
+
 ### Thread counts exercised across the suite
 
 | Tests | Thread counts |
@@ -115,12 +119,12 @@ Compiled with `-O3 -march=x86-64-v3` (enabling SSE3–4.2, AVX, AVX2, BMI1/2, F1
 Cross-compiled for `aarch64-linux` with both gcc and clang and run under `qemu-aarch64` on an x86-64 host:
 
 - **Integer path:** QEMU implements A64 integer semantics as specified, providing strong evidence that both compilers' aarch64 integer code produces identical pixels.
-- **Float options and friendly maths:** under `qemu-aarch64`, floating-point rounding comes from QEMU's IEEE 754 emulation rather than physical arm64 silicon. A real aarch64 CPU in default Linux FP mode should agree, but has not been observed yet.
-- **Worker-pool memory ordering:** x86-64 has a stronger memory model than arm64, so running `qemu-aarch64` on an x86-64 host cannot catch an overly weak atomic memory order in `src/soft/workers.c`. Only a physical arm64 machine can test that.
+- **Float options and friendly maths:** under `qemu-aarch64`, floating-point rounding comes from QEMU's IEEE 754 emulation rather than physical arm64 silicon. The native run in an Apple silicon NixOS virtual machine (noted above) confirmed that physical arm64 silicon in default Linux FP mode produces the same hashes; other arm64 microarchitectures have not been tested directly.
+- **Worker-pool memory ordering:** x86-64 has a stronger memory model than arm64, so running `qemu-aarch64` on an x86-64 host cannot catch an overly weak atomic memory order in `src/soft/workers.c`. The native `aarch64-linux` suite and 20 consecutive rebuilds of `checks.aarch64-linux.clang` in an Apple silicon NixOS virtual machine ran on physical arm64 cores without failure; as with any concurrency testing, passing runs are evidence rather than proof of absence of races, and non-Apple arm64 CPUs have not been exercised.
 
 ## What is not checked
 
-- **Physical arm64 hardware** (float options and weak-memory-model threading rest on QEMU).
+- **Broader arm64 hardware:** the native `aarch64-linux` suite has passed on one chip family (Apple silicon, in a NixOS virtual machine); other arm64 CPUs have not been tested directly, and routine x86-64 checks still use `qemu-aarch64`.
 - **Big-endian hosts** (refused at compile time).
 - **macOS, Windows and MSVC** (not built or tested).
 - **32-bit targets other than `wasm32`** (`i686`, `armv7`).

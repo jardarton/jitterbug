@@ -12,6 +12,12 @@
 #     static library) and through add_subdirectory of SOURCE.
 #     TOOLCHAIN (emscripten's) cross-builds, EMULATOR runs the programs,
 #     and pkg-config is left out.
+#     ABSOLUTE=ON gives the install directories (CMAKE_INSTALL_LIBDIR,
+#     INCLUDEDIR, BINDIR and DATADIR) as absolute paths inside the prefix
+#     (as Nix gives them), and installs with --prefix into WORK/stage
+#     (moved from there): the install must still be relocatable, and
+#     nothing must land in the configured prefix. ABSOLUTE=ROOT gives
+#     LIBDIR as the prefix itself, ABSOLUTE=SLASH as lib/ (a trailing /).
 #
 #   cmake -DPREFIX=<installed prefix> -DWORK=<empty dir> [-DSHARED=ON]
 #         [-DTOOLS=ON] ... -P tests/package/check.cmake
@@ -80,12 +86,30 @@ endfunction()
 
 if(SOURCE)
   set(_build ${WORK}/build)
+  set(_dirs)
+  set(_installed ${WORK}/prefix)
+  if(ABSOLUTE)
+    if(ABSOLUTE STREQUAL "ROOT")
+      set(_libdir ${WORK}/prefix)
+    elseif(ABSOLUTE STREQUAL "SLASH")
+      set(_libdir ${WORK}/prefix/lib/)
+    else()
+      set(_libdir ${WORK}/prefix/lib)
+    endif()
+    set(_dirs -DCMAKE_INSTALL_LIBDIR=${_libdir}
+      -DCMAKE_INSTALL_INCLUDEDIR=${WORK}/prefix/include -DCMAKE_INSTALL_BINDIR=${WORK}/prefix/bin
+      -DCMAKE_INSTALL_DATADIR=${WORK}/prefix/share)
+    set(_installed ${WORK}/stage)
+  endif()
   run(${CMAKE_COMMAND} -S ${SOURCE} -B ${_build} ${_gen} ${_cross} -DCMAKE_BUILD_TYPE=Release
-    -DCMAKE_INSTALL_PREFIX=${WORK}/prefix -DBUILD_SHARED_LIBS=${SHARED}
+    -DCMAKE_INSTALL_PREFIX=${WORK}/prefix -DBUILD_SHARED_LIBS=${SHARED} ${_dirs}
     -DJB_TESTS=OFF -DJB_TOOLS=ON -DJB_EXAMPLES=OFF -DJB_VULKAN=OFF -DJB_WERROR=ON)
   run(${CMAKE_COMMAND} --build ${_build})
-  run(${CMAKE_COMMAND} --install ${_build})
-  file(RENAME ${WORK}/prefix ${WORK}/moved)
+  run(${CMAKE_COMMAND} --install ${_build} --prefix ${_installed})
+  if(ABSOLUTE AND EXISTS ${WORK}/prefix)
+    message(FATAL_ERROR "the install with --prefix ${_installed} wrote into ${WORK}/prefix")
+  endif()
+  file(RENAME ${_installed} ${WORK}/moved)
   set(PREFIX ${WORK}/moved)
 endif()
 
@@ -142,7 +166,7 @@ endif()
 file(GLOB _package ${_cmakedir}/*.cmake)
 set(_forbidden jb_build_flags jb_internal "LINK_ONLY:>")
 if(SOURCE)
-  list(APPEND _forbidden ${SOURCE} ${WORK}/build ${WORK}/prefix)
+  list(APPEND _forbidden ${SOURCE} ${WORK}/build ${WORK}/prefix ${WORK}/stage)
 endif()
 foreach(_f ${_package} ${_pc})
   file(READ ${_f} _text)
@@ -168,6 +192,11 @@ endif()
 # find_package, from CMAKE_PREFIX_PATH (and the root path a cross
 # toolchain searches only under).
 set(_find -DCMAKE_PREFIX_PATH=${PREFIX})
+# A package directly under the prefix (ABSOLUTE=ROOT) is not on find_package's
+# search path outside Windows: the user names it.
+if(ABSOLUTE STREQUAL "ROOT")
+  list(APPEND _find -Djitterbug_DIR=${_cmakedir})
+endif()
 if(TOOLCHAIN)
   list(APPEND _find -DCMAKE_FIND_ROOT_PATH=${PREFIX})
 endif()

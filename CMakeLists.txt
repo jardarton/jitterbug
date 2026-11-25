@@ -38,6 +38,83 @@ if(PROJECT_IS_TOP_LEVEL AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYP
 endif()
 
 include(GNUInstallDirs)
+# Paths by their names alone, never resolving "..": through a symlink
+# "a/link/../lib" is something other than "a/lib". jb_clean_path drops
+# only what cannot change where a path leads: empty and "." elements (a
+# doubled or trailing "/", "./lib"). jb_join_path appends sub to a
+# directory, giving sub alone for ".". jb_under_prefix says whether
+# absolute directory <path> is under <prefix>, and is false for any ".."
+# in either.
+function(jb_clean_path out path)
+  set(_root "")
+  if(path MATCHES "^//[^/]")
+    set(_root "//")
+  elseif(path MATCHES "^/")
+    set(_root "/")
+  endif()
+  string(REPLACE "/" ";" _parts "${path}")
+  set(_kept)
+  foreach(_part IN LISTS _parts)
+    if(NOT _part STREQUAL "" AND NOT _part STREQUAL ".")
+      list(APPEND _kept "${_part}")
+    endif()
+  endforeach()
+  list(JOIN _kept "/" _clean)
+  set(_clean "${_root}${_clean}")
+  if(_clean STREQUAL "")
+    set(_clean .)
+  endif()
+  set(${out} "${_clean}" PARENT_SCOPE)
+endfunction()
+function(jb_join_path out dir sub)
+  jb_clean_path(_dir "${dir}")
+  if(_dir STREQUAL ".")
+    set(${out} "${sub}" PARENT_SCOPE)
+  elseif(_dir MATCHES "/$")
+    set(${out} "${_dir}${sub}" PARENT_SCOPE)
+  else()
+    set(${out} "${_dir}/${sub}" PARENT_SCOPE)
+  endif()
+endfunction()
+function(jb_under_prefix out prefix path)
+  jb_clean_path(_prefix "${prefix}")
+  jb_clean_path(_path "${path}")
+  if(NOT IS_ABSOLUTE "${_prefix}" OR NOT IS_ABSOLUTE "${_path}"
+      OR "/${_prefix}/" MATCHES "/\\.\\./" OR "/${_path}/" MATCHES "/\\.\\./")
+    set(${out} OFF PARENT_SCOPE)
+    return()
+  endif()
+  cmake_path(IS_PREFIX _prefix "${_path}" _under)
+  set(${out} ${_under} PARENT_SCOPE)
+endfunction()
+
+# The install directories (_jb_install_<DIR>), relative to the prefix
+# where they can be, so that a moved prefix (or cmake --install --prefix)
+# keeps the CMake package working. All or nothing: when every directory
+# the install uses is relative or (as Nix gives them) absolute under
+# CMAKE_INSTALL_PREFIX, the absolute ones are made relative to it;
+# otherwise all stay as given (jb_clean_path apart), and the install is
+# not relocatable, as the parts given absolute must stay where they were
+# put relative to each other (the CMake package, jitterbug.pc and the
+# tools' RPATH name them).
+set(_jb_install_dirs LIBDIR INCLUDEDIR BINDIR DATADIR)
+set(_jb_relocatable ON)
+foreach(_jb_dir ${_jb_install_dirs})
+  if(IS_ABSOLUTE "${CMAKE_INSTALL_${_jb_dir}}")
+    jb_under_prefix(_jb_in_prefix "${CMAKE_INSTALL_PREFIX}" "${CMAKE_INSTALL_${_jb_dir}}")
+    if(NOT _jb_in_prefix)
+      set(_jb_relocatable OFF)
+    endif()
+  endif()
+endforeach()
+jb_clean_path(_jb_clean_prefix "${CMAKE_INSTALL_PREFIX}")
+foreach(_jb_dir ${_jb_install_dirs})
+  jb_clean_path(_jb_install_${_jb_dir} "${CMAKE_INSTALL_${_jb_dir}}")
+  if(_jb_relocatable AND IS_ABSOLUTE "${CMAKE_INSTALL_${_jb_dir}}")
+    file(RELATIVE_PATH _jb_rel "${_jb_clean_prefix}" "${_jb_install_${_jb_dir}}")
+    jb_clean_path(_jb_install_${_jb_dir} "${_jb_rel}")
+  endif()
+endforeach()
 
 # Flags for everything we build ourselves (not for third_party/).
 add_library(jb_build_flags INTERFACE)
@@ -159,7 +236,7 @@ if(WIN32 AND BUILD_SHARED_LIBS)
 endif()
 target_include_directories(jitterbug PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  $<INSTALL_INTERFACE:${_jb_install_INCLUDEDIR}>)
 target_include_directories(jitterbug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # Before 1.0 every minor version may break the ABI, so the soname has
 # both (libjitterbug.so.0.1).
@@ -202,15 +279,29 @@ endif()
 # (find_package(jitterbug), the target jitterbug::jitterbug), the
 # pkg-config file and the licence. tests/package checks what a user gets.
 # The tools install their own (jb_install_tool, below).
-set(JB_LICENSE_DIR ${CMAKE_INSTALL_DATADIR}/licenses/jitterbug)
+jb_join_path(JB_LICENSE_DIR "${_jb_install_DATADIR}" licenses/jitterbug)
+# A sanitized build is for the project's own tests: its static library
+# does not carry the sanitizers' link flags, so a user linking it would
+# fail on undefined __asan_* symbols. Its install is refused, first in
+# every directory that installs anything (here and jb_install_tool), so
+# that nothing is copied even when a directory's install runs alone or in
+# parallel; configure, build and ctest are unaffected.
+function(jb_refuse_sanitized_install)
+  if(JB_SANITIZE)
+    install(CODE [[
+      message(FATAL_ERROR "jitterbug: a JB_SANITIZE=ON build is for running the project's own tests and cannot be installed (its library does not carry the sanitizers' link flags, so its users would fail to link); reconfigure with -DJB_SANITIZE=OFF to install")
+    ]] ALL_COMPONENTS)
+  endif()
+endfunction()
 if(JB_INSTALL)
+  jb_refuse_sanitized_install()
   include(CMakePackageConfigHelpers)
-  set(_jb_cmake_dir ${CMAKE_INSTALL_LIBDIR}/cmake/jitterbug)
+  jb_join_path(_jb_cmake_dir "${_jb_install_LIBDIR}" cmake/jitterbug)
   install(TARGETS jitterbug EXPORT jitterbugTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-  install(FILES include/jitterbug.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    ARCHIVE DESTINATION ${_jb_install_LIBDIR}
+    LIBRARY DESTINATION ${_jb_install_LIBDIR}
+    RUNTIME DESTINATION ${_jb_install_BINDIR})
+  install(FILES include/jitterbug.h DESTINATION ${_jb_install_INCLUDEDIR})
   install(EXPORT jitterbugTargets NAMESPACE jitterbug:: DESTINATION ${_jb_cmake_dir})
   get_target_property(_jb_type jitterbug TYPE)
   if(_jb_type STREQUAL "SHARED_LIBRARY")
@@ -239,10 +330,10 @@ if(JB_INSTALL)
   # jitterbug.pc, relocatable: prefix is found from the file's own
   # directory (${pcfiledir}), and libdir and includedir from prefix. A
   # directory given absolute (as Nix gives them) stays absolute unless it
-  # is under the prefix.
-  set(_jb_prefix "${CMAKE_INSTALL_PREFIX}")
-  set(_jb_pc_full "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
-  cmake_path(IS_PREFIX _jb_prefix "${_jb_pc_full}" NORMALIZE _jb_pc_in_prefix)
+  # is under the prefix (by name alone: jb_under_prefix).
+  set(_jb_prefix "${_jb_clean_prefix}")
+  jb_join_path(_jb_pc_full "${CMAKE_INSTALL_FULL_LIBDIR}" pkgconfig)
+  jb_under_prefix(_jb_pc_in_prefix "${_jb_prefix}" "${_jb_pc_full}")
   if(_jb_pc_in_prefix)
     file(RELATIVE_PATH _jb_up "${_jb_pc_full}" "${_jb_prefix}")
     string(REGEX REPLACE "/$" "" _jb_up "${_jb_up}")
@@ -255,8 +346,8 @@ if(JB_INSTALL)
     set(JB_PC_PREFIX "${_jb_prefix}")
   endif()
   foreach(_jb_dir LIBDIR INCLUDEDIR)
-    set(_jb_full "${CMAKE_INSTALL_FULL_${_jb_dir}}")
-    cmake_path(IS_PREFIX _jb_prefix "${_jb_full}" NORMALIZE _jb_in_prefix)
+    jb_clean_path(_jb_full "${CMAKE_INSTALL_FULL_${_jb_dir}}")
+    jb_under_prefix(_jb_in_prefix "${_jb_prefix}" "${_jb_full}")
     if(_jb_pc_in_prefix AND _jb_in_prefix)
       file(RELATIVE_PATH _jb_rel "${_jb_prefix}" "${_jb_full}")
       set(JB_PC_${_jb_dir} "\${prefix}/${_jb_rel}")
@@ -278,8 +369,8 @@ if(JB_INSTALL)
     set(JB_PC_CFLAGS " -DJB_SHARED")
   endif()
   configure_file(cmake/jitterbug.pc.in ${CMAKE_CURRENT_BINARY_DIR}/jitterbug.pc @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/jitterbug.pc
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+  jb_join_path(_jb_pc_dir "${_jb_install_LIBDIR}" pkgconfig)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/jitterbug.pc DESTINATION ${_jb_pc_dir})
 
   # Licences under share/licenses (kept where documentation is left out
   # of an install): jitterbug's, and with the tools those of the code
@@ -294,9 +385,12 @@ function(jb_install_tool target)
   if(NOT (JB_TOOLS AND JB_INSTALL))
     return()
   endif()
-  install(TARGETS ${target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  jb_refuse_sanitized_install()
+  install(TARGETS ${target} RUNTIME DESTINATION ${_jb_install_BINDIR})
   # Against a shared library, the installed tool finds it relative to
   # itself, so a prefix outside the loader's path needs no LD_LIBRARY_PATH.
+  # The two full directories keep their relative place when the install
+  # is relocated (all relative to the prefix, or all as given).
   get_target_property(_type jitterbug TYPE)
   if(UNIX AND _type STREQUAL "SHARED_LIBRARY")
     if(APPLE)
@@ -309,7 +403,7 @@ function(jb_install_tool target)
   endif()
   if(EMSCRIPTEN)
     install(FILES $<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.wasm
-      DESTINATION ${CMAKE_INSTALL_BINDIR})
+      DESTINATION ${_jb_install_BINDIR})
   endif()
   foreach(_dir ${ARGN})
     install(FILES ${PROJECT_SOURCE_DIR}/third_party/${_dir}/LICENSE

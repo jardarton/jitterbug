@@ -207,6 +207,29 @@
           ];
           # The sanitizers and _FORTIFY_SOURCE don't mix.
           hardeningDisable = lib.optionals sanitize [ "all" ];
+          # A sanitized build is not installable (CMakeLists.txt, "The
+          # install"): the check is that the install refuses it.
+          ${if sanitize then "installPhase" else null} = ''
+            runHook preInstall
+            # The whole install and each tool's directory alone fail with
+            # the message, and copy nothing: not into a fresh staging
+            # prefix, nor into $out (where cmakeFlags' absolute
+            # directories point).
+            stage=$TMPDIR/stage
+            mkdir $stage
+            for dir in . tools/jb-tex tools/jb-mesh tools/jb-bench; do
+              if cmake --install $dir --prefix $stage > install.log 2>&1; then
+                cat install.log; echo "a JB_SANITIZE=ON build installed ($dir)"; exit 1
+              fi
+              grep -q "a JB_SANITIZE=ON build is for running" install.log ||
+                { cat install.log; exit 1; }
+              [ -z "$(ls -A $stage)" ] && [ ! -e $out ] ||
+                { echo "the install of $dir copied files"; ls -R $stage; exit 1; }
+            done
+            mkdir -p $out
+            cp Testing/Temporary/LastTest.log $out/
+            runHook postInstall
+          '';
           doCheck = true;
           nativeCheckInputs = [ pkgs.jq ];
           # lavapipe wants somewhere to keep its shader cache.
@@ -571,6 +594,7 @@
       # source tarball configured with nothing but CMake, built, and its
       # tests run (no JB_CONFORMANCE_FETCHED: the fetched-only programs are
       # left out, as the status says); then installed, static and shared
+      # (also with absolute library and header directories in the prefix)
       # and for wasm32, into a prefix that is then moved, and a consumer
       # built against each through find_package, pkg-config (not wasm) and
       # add_subdirectory, and run.
@@ -597,7 +621,17 @@
             for shared in OFF ON; do
               cmake -DSOURCE=$PWD -DWORK=$TMPDIR/package-$shared -DSHARED=$shared \
                 -DGENERATOR=Ninja -DCC=$CC -P tests/package/check.cmake
+              # With absolute install directories in the prefix, installed
+              # with --prefix elsewhere.
+              cmake -DSOURCE=$PWD -DWORK=$TMPDIR/package-absolute-$shared -DSHARED=$shared \
+                -DABSOLUTE=ON -DGENERATOR=Ninja -DCC=$CC -P tests/package/check.cmake
             done
+            # The same with the library directory as the prefix itself
+            # (shared: the tools' RPATH), and written with a trailing /.
+            cmake -DSOURCE=$PWD -DWORK=$TMPDIR/package-absolute-root -DSHARED=ON \
+              -DABSOLUTE=ROOT -DGENERATOR=Ninja -DCC=$CC -P tests/package/check.cmake
+            cmake -DSOURCE=$PWD -DWORK=$TMPDIR/package-absolute-slash -DSHARED=OFF \
+              -DABSOLUTE=SLASH -DGENERATOR=Ninja -DCC=$CC -P tests/package/check.cmake
             # emscripten's writable cache, as in the wasm builds.
             export EM_CACHE=$TMPDIR/emscripten-cache
             cp -r ${pkgs.emscripten}/share/emscripten/cache $EM_CACHE

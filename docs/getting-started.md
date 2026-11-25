@@ -32,7 +32,9 @@ Useful CMake options (defined in [CMakeLists.txt](../CMakeLists.txt)):
 | `JB_TESTS` | `ON` (top-level), `OFF` (subproject) | Build and register the CTest suite. |
 | `JB_INSTALL` | `ON` (top-level), `OFF` (subproject) | Install the library, header, CMake config, `jitterbug.pc`, licences and (with `JB_TOOLS`) tools. |
 
-With default relative install directories, the install is relocatable: moving the prefix keeps both the CMake package and `jitterbug.pc` working (verified by `tests/package/check.cmake` in the `package` flake check; see [todo.md](../todo.md) regarding absolute `CMAKE_INSTALL_LIBDIR`/`INCLUDEDIR`).
+For the four install destinations (`CMAKE_INSTALL_LIBDIR`, `CMAKE_INSTALL_INCLUDEDIR`, `CMAKE_INSTALL_BINDIR` and `CMAKE_INSTALL_DATADIR`), relative paths always follow `cmake --install --prefix`, and if every absolute destination passes a lexical inside-prefix check against `CMAKE_INSTALL_PREFIX` (a mix of relative and absolute-inside-prefix destinations is allowed), the absolute ones are rewritten relative to the prefix so the install and its CMake package are relocatable. That rewrite is all-or-nothing across those four destinations: if any absolute destination fails the check, none of the absolute destinations is rewritten. Independently, `jitterbug.pc` derives `prefix` from `${pcfiledir}` and expresses eligible library and header paths relative to `${prefix}` when they pass the same check. The containment check rejects `..` in either path rather than resolving it. (Verified by `tests/package/check.cmake` in the `package` flake check.)
+
+A build configured with `-DJB_SANITIZE=ON` is for running jitterbug's own tests and cannot be installed: with install rules enabled (the root with `JB_INSTALL=ON`, and each tool with `JB_INSTALL=ON` and `JB_TOOLS=ON`), a sanitizer build refuses installation before copying any files, including when installing a tool directory alone, because the sanitizer link flags do not travel with the installed library.
 
 ## Using jitterbug in your project
 

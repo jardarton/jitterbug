@@ -26,7 +26,7 @@ For identical calls, inputs and options (`scale`, `precise_vertices`, `perspecti
 
 ## What is compared
 
-Twelve sets of stored values live in the repository and are compared by every renderer test build — no build only checks against itself:
+Twelve sets of stored values live in the repository, and each renderer test build compares the ones that apply to it (`wasm` omits `demo_sources`) — no build only checks against itself:
 
 | Stored values | Coverage | Tests |
 |---|---|---|
@@ -65,20 +65,22 @@ Twelve sets of stored values live in the repository and are compared by every re
 | `arm64` | gcc, `aarch64-linux` cross, Release | `qemu-aarch64` | x86-64 | 1–16 |
 | `arm64-clang` | clang, `aarch64-linux` cross, Release | `qemu-aarch64` | x86-64 | 1–16 |
 
-`nix flake check` also runs six non-renderer checks:
+`nix flake check` also runs eight other checks:
 
 | Check | Purpose | Hosts |
 |---|---|---|
-| `conformance-record` | Re-records all 13 ps1-tests lists from pinned sources and compares with checked-in files and `fixtures.txt` | x86-64, aarch64 |
+| `conformance-record` | Re-records all 13 ps1-tests programs from pinned sources, compares the 10 checked-in recordings byte for byte, and checks fixture identities in `fixtures.txt` for all 13 (plus that none of the 3 fetched-only programs is checked in) | x86-64, aarch64 |
 | `gte-cases` | Re-converts the 1150 GTE cases (`tools/gte-cases/regen.sh --check`) and compares | x86-64, aarch64 |
 | `fuzz-diff` | Differential fuzzing against psxstack's GPU (strict, bounded, invariants, mutation self-test, ASan+UBSan) | x86-64, aarch64 |
 | `probe` | Cross-compiles the MIPS I hardware probe PS-X EXE and verifies its header, memory map and ISA | x86-64 |
-| `package` | Builds and tests the source tarball offline with CMake alone, then verifies relocatable static, shared and wasm32 installs via `find_package`, `pkg-config` and `add_subdirectory` | x86-64, aarch64 |
-| `package-nix` | Consumes `packages.default` and the shared Nix build via `find_package` and `pkg-config` | x86-64, aarch64 |
+| `package` | Builds and tests the source tarball offline with CMake alone (driven by `flake.nix`), then verifies moved installs via `tests/package/check.cmake`: native static and shared (relative and absolute-inside-prefix layouts), shared-only `LIBDIR` equal to prefix (explicit `jitterbug_DIR`), static-only trailing-slash `LIBDIR`, and wasm32 (`find_package` plus separate source-tree `add_subdirectory`, no `pkg-config`) | x86-64, aarch64 |
+| `package-nix` | Consumes `packages.default` and the shared Nix installs in place (without moving them) via `find_package` and `pkg-config` | x86-64, aarch64 |
+| `browser-first-light` | Runs `examples/first-light/web/check-browser.mjs` in headless Chromium in the Nix sandbox against `expected.txt`, keys, layout and pause | x86-64, aarch64 |
+| `browser-demo` | Runs `examples/demo/web/check-browser.mjs` in headless Chromium in the Nix sandbox against `expected.txt`, keys, buttons, phone layout, pause and step | x86-64, aarch64 |
 
-### Native `aarch64-linux` run on physical arm64 hardware
+### Native `aarch64-linux` run
 
-In November 2026 (0.1.0 plus pending fixes), the full `aarch64-linux` flake check suite (`nix flake check -L` — `clang`, `gcc`, `shared`, `sanitize`, `O0`, `wasm`, `conformance-record`, `gte-cases`, `fuzz-diff`, `package` and `package-nix`) passed natively in an Apple silicon NixOS virtual machine (`aarch64-linux`), matching all checked-in hashes and passing the threaded determinism tests across thread counts 1–16. The native `clang` check was then rebuilt and run 20 times in a row (`nix build --rebuild .#checks.aarch64-linux.clang`) with no failure, to give intermittent memory-ordering bugs in `src/soft/workers.c` a chance to show under arm64's weak memory model. This covers one chip family (Apple silicon); routine checks on x86-64 hosts still use the `qemu-aarch64` cross builds above.
+In November 2026 (before `browser-first-light` and `browser-demo` were added), the `aarch64-linux` flake check suite as it stood then (`nix flake check -L` — `clang`, `gcc`, `shared`, `sanitize`, `O0`, `wasm`, `conformance-record`, `gte-cases`, `fuzz-diff`, `package` and `package-nix`) passed natively in an Apple silicon NixOS virtual machine (`aarch64-linux`), matching all checked-in hashes and passing `determinism_threads` across its test thread counts of 1, 2, 3, 4, 8 and 16 (and mid-draw thread-count changes). The native `clang` check was then rebuilt and run 20 times in a row (`nix build --rebuild .#checks.aarch64-linux.clang`) with no failure, to give intermittent memory-ordering bugs in `src/soft/workers.c` a chance to show under arm64's weak memory model — a VM runs on real arm64 cores, not emulated ones, which is what distinguishes it from `qemu-aarch64`. Routine checks on x86-64 hosts still use the `qemu-aarch64` cross builds above.
 
 ### Thread counts exercised across the suite
 
@@ -99,7 +101,7 @@ In November 2026 (0.1.0 plus pending fixes), the full `aarch64-linux` flake chec
 No registered test is silently skipped in `nix flake check` (`JB_REQUIRE_PTY=ON` turns missing `/dev/ptmx` in `probe_pty_*` and `probe_line_*` into failures rather than skips). Tests not built in particular configurations:
 
 - **Single-threaded (`wasm` or `JB_THREADS=OFF`):** thread requests clamp to 1; multi-thread-only tests (`context_lifecycle`, `seed_multi`, `*_4t`, `*_8t`, `probe_pty_*`, `probe_line_*`) are omitted, and `seed_NN` runs with `--threads 1`.
-- **`wasm` only:** `exports` is omitted (WebAssembly has no separate read-only data segment for `nm`), POSIX-only `probe_cli_*` are omitted, and `first_light_web_module` and `demo_web_module` are added.
+- **`wasm` only:** `exports` is omitted (WebAssembly has no separate read-only data segment for `nm`), `demo_sources` and POSIX-only `probe_cli_*` are omitted, and `first_light_web_module` and `demo_web_module` are added.
 - **`vk_smoke`:** runs only in native checks with Vulkan and Mesa lavapipe (it draws nothing and hashes nothing).
 - **`seed_measure`:** runs only on non-emulated native builds (tests `tools/seed-record/measure.sh`, not rendering).
 - **Emulated checks (`x86-64-v3`, `arm64`, `arm64-clang`):** `flake.nix` verifies that every test command invokes `CMAKE_CROSSCOMPILING_EMULATOR` (or the host `cmake`), so binfmt registration is never relied upon.
@@ -119,16 +121,16 @@ Compiled with `-O3 -march=x86-64-v3` (enabling SSE3–4.2, AVX, AVX2, BMI1/2, F1
 Cross-compiled for `aarch64-linux` with both gcc and clang and run under `qemu-aarch64` on an x86-64 host:
 
 - **Integer path:** QEMU implements A64 integer semantics as specified, providing strong evidence that both compilers' aarch64 integer code produces identical pixels.
-- **Float options and friendly maths:** under `qemu-aarch64`, floating-point rounding comes from QEMU's IEEE 754 emulation rather than physical arm64 silicon. The native run in an Apple silicon NixOS virtual machine (noted above) confirmed that physical arm64 silicon in default Linux FP mode produces the same hashes; other arm64 microarchitectures have not been tested directly.
-- **Worker-pool memory ordering:** x86-64 has a stronger memory model than arm64, so running `qemu-aarch64` on an x86-64 host cannot catch an overly weak atomic memory order in `src/soft/workers.c`. The native `aarch64-linux` suite and 20 consecutive rebuilds of `checks.aarch64-linux.clang` in an Apple silicon NixOS virtual machine ran on physical arm64 cores without failure; as with any concurrency testing, passing runs are evidence rather than proof of absence of races, and non-Apple arm64 CPUs have not been exercised.
+- **Float options and friendly maths:** under `qemu-aarch64`, floating-point rounding comes from QEMU's IEEE 754 emulation rather than native arm64 execution. The native run in an Apple silicon NixOS virtual machine (`aarch64-linux`) noted above produced the same hashes in default Linux FP mode; other arm64 machines have not been tested directly.
+- **Worker-pool memory ordering:** x86-64 has a stronger memory model than arm64, so running `qemu-aarch64` on an x86-64 host cannot catch an overly weak atomic memory order in `src/soft/workers.c`. The pre-browser `aarch64-linux` check suite and 20 consecutive rebuilds of `checks.aarch64-linux.clang` in an Apple silicon NixOS virtual machine (`aarch64-linux`) noted above passed without failure; as with any concurrency testing, passing runs are evidence rather than proof of absence of races, and other arm64 machines have not been exercised.
 
 ## What is not checked
 
-- **Broader arm64 hardware:** the native `aarch64-linux` suite has passed on one chip family (Apple silicon, in a NixOS virtual machine); other arm64 CPUs have not been tested directly, and routine x86-64 checks still use `qemu-aarch64`.
+- **Broader arm64 testing:** only the pre-browser `aarch64-linux` check suite and 20 repeated `clang` rebuilds have been run natively, in an Apple silicon NixOS virtual machine (`aarch64-linux`); other arm64 machines have not been tested directly, and routine x86-64 checks still use `qemu-aarch64`.
 - **Big-endian hosts** (refused at compile time).
 - **macOS, Windows and MSVC** (not built or tested).
 - **32-bit targets other than `wasm32`** (`i686`, `armv7`).
-- **Web browsers in CI:** `examples/first-light/web/check-browser.mjs` and `examples/demo/web/check-browser.mjs` verify identical hashes in headless Chromium by hand (the Nix sandbox has no browser).
+- **Web browsers in hosted CI (and non-Chromium browsers):** `checks.<system>.browser-first-light` and `browser-demo` run `examples/first-light/web/check-browser.mjs` and `examples/demo/web/check-browser.mjs` in headless Chromium inside `nix flake check` (on `x86_64-linux` and `aarch64-linux`), verifying identical hashes, controls and layout, whereas hosted CI runs only the `clang` and `wasm` flake checks (and builds the demo for GitHub Pages on pushes to `main`). Firefox and Safari are not checked automatically, and the optional check expecting 30–70 frames of advance between two samples about a second apart (enabled by any non-empty `JB_CHECK_FPS`, e.g. `JB_CHECK_FPS=1`) is run by hand only.
 - **Multi-threaded WebAssembly** (not built).
 - **Compiler versions outside the pinned flake.**
 

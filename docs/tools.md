@@ -77,10 +77,12 @@ jb-mesh [options] INPUT.obj|INPUT.gltf|INPUT.glb OUTPUT.jbm
 ### Supported input formats
 
 - **Wavefront OBJ** (`tools/jb-mesh/obj.c`, jitterbug's own reader):
-  - Statements read: `v` (with optional vertex colour `v x y z r g b`), `vt`, `vn`, `f` (`v`, `v/vt`, `v//vn`, `v/vt/vn`, including negative indices), `usemtl`, `mtllib` (MTL: `newmtl`, `Kd`, `d`, `Tr`, `map_Kd`), `#` comments, and backslash line continuations. Other statements (`o`, `g`, `s`, etc.) are ignored.
-  - Triangles and quads are preserved as triangles and quads. Polygons with more than 4 corners are fanned into triangles from the first vertex (valid for convex polygons; concave n-gons should be triangulated beforehand).
+  - Statements read: `v` (with optional vertex colour `v x y z r g b`), `vt`, `vn`, `f` (`v`, `v/vt`, `v//vn`, `v/vt/vn`, including negative indices), `usemtl`, `mtllib` (MTL: `newmtl`, `Kd`, `d`, `Tr`, and `map_Kd`, which only records that a texture was mentioned), `#` comments, and backslash line continuations (before LF or CRLF). Unknown directives (`o`, `g`, `s`, etc.) are ignored.
+  - On `usemtl`, `newmtl` and `mtllib` lines, `#` starts a comment only when preceded by a space or tab and followed by a space, a tab or the end of the line (so `usemtl red # note` names `red`, while `Material #1` and `mat#1` stay whole). Only the numeric directives (`v`, `vt`, `vn`, `Kd`, `d`, `Tr`) and `f` stop at any `#` that begins a token; `map_Kd` only records that a texture was mentioned, and unknown directives are ignored.
+  - Triangles and quads are kept as triangles and quads, bypassing ear clipping and its area and normal checks. Faces of 5 to 1024 corners are cut into triangles by ear clipping, projected along the dominant axis of the face's Newell normal, so concave faces convert cleanly (the old first-corner fan is preserved only for strictly convex faces; collinear corners can change the triangulation).
   - `vt` vertical coordinates are flipped (`1 - v`) because OBJ places `(0, 0)` at the bottom-left.
-  - Known reader limits: backslash line continuations require LF (`\n`, not CRLF `\r\n`), and inline `#` comments on `mtllib`/`usemtl` lines are not stripped.
+  - Refused with `path:line`: faces of 5 to 1024 corners with zero area or a non-finite Newell normal (`a face of N corners with no area`), faces of 5 to 1024 corners where ear clipping fails (`a face of N corners that cannot be cut into triangles (does it cross itself?)`), faces with more than 1024 corners, and `usemtl` or `newmtl` lines with no name.
+  - Known reader limits: self-intersection is not checked explicitly (some self-crossing faces are refused, while others can produce overlapping triangles); faces with holes are not supported; and collinear corners can cause a refusal.
 - **glTF 2.0** (`tools/jb-mesh/gltf.c`, via `third_party/cgltf` 1.15):
   - Reads `.gltf` (external or data-URI buffers) and `.glb`.
   - Traverses the default scene's nodes, baking each node's world transform into positions (and inverse transpose into normals, reversing triangle winding on mirroring transforms).

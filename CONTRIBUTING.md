@@ -16,7 +16,7 @@ Contributions that fit these principles — evidence-backed conformance fixes, b
 
 ## Reporting a bug
 
-Before opening an issue, check [FAQ.md](FAQ.md) and [todo.md](todo.md) to see whether the behaviour is an intentional limitation or a known gap. For security vulnerabilities (such as crashes or out-of-bounds reads on untrusted `.jbt`/`.jbm` files or GP0/GP1 streams), report them privately following [SECURITY.md](SECURITY.md) rather than opening a public issue.
+Before opening an issue, check [FAQ.md](FAQ.md) and [todo.md](todo.md) to see whether the behaviour is an intentional limitation or planned work. For security vulnerabilities (such as crashes or out-of-bounds reads on untrusted `.jbt`/`.jbm` files or GP0/GP1 streams), report them privately following [SECURITY.md](SECURITY.md) rather than opening a public issue.
 
 A useful bug report includes:
 
@@ -46,7 +46,7 @@ You can also configure and build directly with CMake 3.24+ and a C11 compiler (G
 | `JB_TESTS` | `ON` (top-level) | Build and register the CTest suite |
 | `JB_TOOLS` | `OFF` | Build `jb-bench`, `jb-tex` and `jb-mesh` (`jb-tex` and `jb-mesh` are also built when `JB_TESTS=ON`) |
 | `JB_EXAMPLES` | `OFF` | Build `examples/first-light` and `examples/demo` (SDL3 windows when SDL3 is found) |
-| `JB_SANITIZE` | `OFF` | Enable AddressSanitizer, UndefinedBehaviorSanitizer and `float-cast-overflow` |
+| `JB_SANITIZE` | `OFF` | Enable AddressSanitizer, UndefinedBehaviorSanitizer and `float-cast-overflow` (with install rules enabled — `JB_INSTALL=ON` at the root, and `JB_INSTALL=ON` with `JB_TOOLS=ON` for tools — refuses `cmake --install` before copying any files, including when installing a tool directory alone) |
 | `JB_WERROR` | `OFF` | Treat compiler warnings as errors |
 | `JB_THREADS` | `ON` | Enable worker threads for rasterisation (forced `OFF` under Emscripten) |
 | `JB_INSTALL` | `ON` (top-level) | Install the library, public header, CMake package, `jitterbug.pc` and licences |
@@ -72,7 +72,7 @@ Before committing or opening a pull request, run the full local check:
 nix flake check -L
 ```
 
-This builds and tests the library across Clang, GCC, ASan+UBSan (with the libFuzzer run), a shared library (checking exported symbols), `-O0`, WebAssembly under Node, `x86-64-v3` and `aarch64` (GCC and Clang) under QEMU (on x86-64 hosts), re-records and verifies the conformance lists and GTE cases, runs differential fuzzing against `psxstack`, builds and verifies the hardware probe's MIPS I executable, and tests the source release tarball and installed packages (`find_package`, `pkg-config` and `add_subdirectory`). See [docs/testing.md](docs/testing.md) and [docs/determinism.md](docs/determinism.md) for details.
+This builds and tests the library across Clang, GCC, ASan+UBSan (with the libFuzzer run and install refusal), a shared library (checking exported symbols), `-O0`, WebAssembly under Node, the `first-light` and `demo` web pages in headless Chromium (`browser-first-light`, `browser-demo`), `x86-64-v3` and `aarch64` (GCC and Clang) under QEMU (on x86-64 hosts), re-records and verifies the conformance lists and GTE cases, runs differential fuzzing against `psxstack`, builds and verifies the hardware probe's MIPS I executable, and tests the source release tarball and installed packages (`find_package`, `pkg-config` and `add_subdirectory`). See [docs/testing.md](docs/testing.md) and [docs/determinism.md](docs/determinism.md) for details.
 
 Hosted CI runs a GitHub Actions workflow on pushes to `main`, on pull requests and by manual dispatch that builds and tests a small subset of the flake's checks (the Clang build and the WebAssembly build), and publishes the demo page to [https://jardarton.github.io/jitterbug/](https://jardarton.github.io/jitterbug/) from `main`. The full `nix flake check -L` stays the local check.
 

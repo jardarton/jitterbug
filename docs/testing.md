@@ -34,18 +34,22 @@ nix flake check -L
 |---|---|
 | `clang` | Static library, tools, examples and full CTest suite with Clang, `-DJB_WERROR=ON`, `JB_VULKAN=ON` (lavapipe), all 13 conformance programs, `JB_REQUIRE_PTY=ON` |
 | `gcc` | Same with GCC |
-| `sanitize` | Same with Clang + ASan/UBSan/`float-cast-overflow` (`JB_SANITIZE=ON`) and `JB_LIBFUZZER=ON` (`fuzz_files_libfuzzer`, 200,000 runs) |
+| `sanitize` | Same with Clang + ASan/UBSan/`float-cast-overflow` (`JB_SANITIZE=ON`) and `JB_LIBFUZZER=ON` (`fuzz_files_libfuzzer`, 200,000 runs); also verifies `cmake --install` (whole build and each tool directory) refuses to install before copying any files |
 | `shared` | Shared library build (`BUILD_SHARED_LIBS=ON`), verifying only `JB_API` symbols are exported (`exports`) |
 | `O0` | Debug (`-O0`) Clang build checked against the exact same stored hashes |
 | `wasm` | Single-threaded Emscripten (`wasm32`) build tested under Node, including example web modules |
 | `x86-64-v3` | Clang `-O3 -march=x86-64-v3` run under QEMU Haswell-v4 (x86-64 hosts): verifies AVX/AVX2 instructions are emitted, no fused multiply-adds appear in `libjitterbug.a`, `isa --expect x86-64-v3` passes, and every stored hash matches |
 | `arm64`, `arm64-clang` | Cross-compiled `aarch64-linux` with GCC and Clang, run under QEMU user-mode emulation (x86-64 hosts) |
-| `conformance-record` | Re-records all 13 `ps1-tests` programs from pinned inputs and verifies byte-for-byte identity with checked-in lists, dumps, logs and `tests/conformance/fixtures.txt` |
+| `conformance-record` | Re-records all 13 `ps1-tests` programs from pinned inputs, compares the 10 checked-in recordings (lists, dumps, logs and licence) byte for byte, checks fixture identities in `tests/conformance/fixtures.txt` for all 13, and verifies none of the 3 fetched-only programs is checked in |
 | `fuzz-diff` | Differential fuzzing against `psxstack`'s software GPU (strict, bounded, invariants, transcripts, fixed cases, mutation self-test and sanitized run) |
 | `gte-cases` | Re-converts `third_party/ps1-tests/gte/test-all.txt` from pinned `ps1-tests` and verifies byte-for-byte identity |
 | `probe` | Builds the MIPS I hardware probe (`probe.exe`) and checks its PS-X EXE header, memory map and MIPS I-only disassembly (x86-64 hosts) |
-| `package` | Builds and tests the source release tarball offline with CMake alone (the 10 checked-in conformance programs; no fetched fixtures or `noRebless`), installs static, shared and wasm32 into a moved prefix, and compiles/runs consumers via `find_package` (static, shared, wasm32), `pkg-config` (native C consumer only) and `add_subdirectory` (from the source tree) |
-| `package-nix` | Consumes the flake's static and shared packages via `find_package` and `pkg-config` |
+| `package` | Unpacks the source release tarball, builds and runs CTest offline with CMake alone (driven by `flake.nix`; 10 checked-in conformance programs, no fetched fixtures or `noRebless`), then runs `tests/package/check.cmake` on moved installs: native static and shared (each with relative and absolute-inside-prefix layouts, the latter via `cmake --install --prefix`), shared only with `LIBDIR` equal to the prefix (using an explicit `jitterbug_DIR`), static only with a trailing-slash `LIBDIR`, and wasm32 (`find_package` plus a separate source-tree `add_subdirectory` test, no `pkg-config`); native runs test `find_package`, `pkg-config` (C only) and source-tree `add_subdirectory` |
+| `package-nix` | Consumes the flake's existing static and shared installs in place (without moving them) via `find_package` and `pkg-config` |
+| `browser-first-light` | Serves `packages.first-light-web` on loopback and runs `examples/first-light/web/check-browser.mjs` in headless Chromium in the Nix sandbox (`x86_64-linux` and `aarch64-linux`; not run by hosted CI): verifies every `expected.txt` hash, frame advancement, keys, layout and pause |
+| `browser-demo` | Same for `packages.demo-web` and `examples/demo/web/check-browser.mjs`: verifies every `expected.txt` hash, frame advancement, keys, buttons, phone layout, pause and step |
+
+By default `check-browser.mjs` checks that frames advance; when running either script by hand, any non-empty `JB_CHECK_FPS` value (for example `JB_CHECK_FPS=1`) enables a check expecting 30–70 frames of advance between two samples about a second apart (see the header comment in each `check-browser.mjs` for the by-hand command). Hosted CI runs only the `clang` and `wasm` flake checks (and builds the demo for GitHub Pages on pushes to `main`), not the browser checks.
 
 Every library test build (`clang`, `gcc`, `sanitize`, `shared`, `O0`, `wasm`, `x86-64-v3`, `arm64`, `arm64-clang`; not `package`) also verifies (`noRebless`) that no CTest entry invokes `rebless.sh`, `--bless` (except `seed_bless_source`, which verifies refusal) or `--record-scale`.
 
@@ -60,7 +64,7 @@ Single-threaded builds (`JB_THREADS=OFF`, including Emscripten) omit multi-threa
 | Public API & geometry | `api_stream`, `api_errors`, `api_read`, `api_frame`, `api_robust`, `api_prim`, `api_vram`, `api_gte`, `api_options`, `api_gte_helpers`, `api_threads`, `api_draw_mode`, `placer`, `api_texture`, `font`, `api_draw2d`, `api_friendly`, `api_records`, `api_draw3d`, `geom_float`, `geom_pipeline`, `split_fuzz`, `friendly_scene`, `sprite_scene`, `draw3d_scene`, `*_duplicate`, `console_scene`, `console_scene_4t` | Every public API surface, error/allocator failure handling, VRAM placer against brute-force model, deterministic float maths, screen-space polygon splitter invariants, stored-hash 2D/3D friendly scenes and the console-level scene |
 | Seed golden traces | `seed_00-*`..`seed_27-*`, `seed_sequence`, `seed_sequence_1t`, `seed_sequence_8t`, `seed_scale3*`, `seed_scale4*`, `seed_scale8*`, `seed_multi`, `api_golden`, `api_golden_scale3`, `seed_compare_*`, `seed_bless_source`, `seed_measure`, `seed_audit_compare` | 28 recorded scenes at 1x, 2x, 3x, 4x and 8x across thread counts and through the public API, plus re-blessing and audit self-tests |
 | Conformance & GTE | `conformance_<name>`, `conformance_<name>_2x`, `conformance_<name>_3x`, `conformance_selftest`, `conformance_refuse_*`, `gte_test_all`, `gte_test_all_partial`, `gte_test_all_no_case` | 10 checked-in (13 with `JB_CONFORMANCE_FETCHED`) `ps1-tests` GPU programs against console dumps/logs at 1x and in the 1x VRAM of 2x/3x contexts, fixture-binding refusals, and 1150 console GTE cases |
-| Determinism | `determinism_threads` | Random streams, queue floods, seed scenes and `jb-bench` workloads at 1x–3x, float options off/on, 1–16 threads and mid-stream thread changes against `tests/determinism_threads.txt` |
+| Determinism | `determinism_threads` | Random streams, queue floods, seed scenes and `jb-bench` workloads at 1x–3x, float options off/on, 1, 2, 3, 4, 8 and 16 threads and mid-stream thread changes against `tests/determinism_threads.txt` |
 | Fuzzing & robustness | `fuzz_robust`, `line_clip`, `fuzz_files`, `fuzz_files_libfuzzer` | Crash/memory-safety fuzzing of GP0/GP1/API and `.jbt`/`.jbm` loaders, plus exact evaluation of clipped lines |
 | Files & converters | `convert_*`, `jb_tex_*`, `jb_mesh_*`, `api_files` | Byte-for-byte pinned `jb-tex` and `jb-mesh` outputs, CLI refusals without leaks, and loader round trips |
 | Examples | `first_light*`, `demo*` | Stored frame hashes across threads and wasm modules, asset/source determinism, demo gap/fade/pier checks and headless CLI checks |
@@ -258,11 +262,18 @@ If rendered pixels from the test files change, `build/tests/test_api_files tests
 
 ## Package and install tests
 
-`tests/package/check.cmake` verifies what a downstream user gets from an installed jitterbug (driven by `checks.package` on the source release tarball and `checks.package-nix` on the flake's static and shared packages):
+`checks.package` and `checks.package-nix` verify what a downstream user gets from an installed jitterbug, using `tests/package/check.cmake`:
 
-- Builds the release tarball offline with CMake alone and runs its CTest suite (without `JB_CONFORMANCE_FETCHED` and without `noRebless`).
-- Installs static, shared and Emscripten builds into a prefix, **moves** the prefix to verify relocatability, checks that installed files (`include/jitterbug.h`, `jitterbugConfig.cmake`, `jitterbugConfigVersion.cmake`, `jitterbugTargets.cmake`, `jitterbug.pc`, tools and licences under `share/licenses/jitterbug/`) are present and contain no build/source/original-prefix paths or internal targets (`jb_build_flags`, `jb_internal`).
-- Builds and runs consumers three ways:
-  - `find_package(jitterbug 0.1)` against the moved install: `tests/package/consumer.c` (strict C99) and `consumer_cxx` (C++11) for static, shared and Emscripten builds.
+- **Tarball build and tests (`checks.package`, driven by `flake.nix`, not `check.cmake`):** unpacks the source release tarball, configures and builds it offline with CMake alone, and runs its CTest suite (without `JB_CONFORMANCE_FETCHED` and without `noRebless`).
+- **Moved-install paths (`checks.package`, via `tests/package/check.cmake`):** installs jitterbug into a prefix, **moves** the prefix to verify relocatability, checks that installed files (`include/jitterbug.h`, `jitterbugConfig.cmake`, `jitterbugConfigVersion.cmake`, `jitterbugTargets.cmake`, `jitterbug.pc`, tools and licences under `share/licenses/jitterbug/`) are present and contain no build/source/original-prefix paths or internal targets (`jb_build_flags`, `jb_internal`), across separate paths:
+  - **Native static and shared:** each tested with a relative layout and with `CMAKE_INSTALL_LIBDIR`, `INCLUDEDIR`, `BINDIR` and `DATADIR` given as absolute paths inside the prefix (installed via `cmake --install --prefix` and verified to write nothing into the originally configured prefix).
+  - **`LIBDIR` equal to the prefix:** shared build only, locating the package with an explicit `jitterbug_DIR`.
+  - **Trailing-slash `LIBDIR`:** static build only.
+  - **WebAssembly (Emscripten):** `find_package` against the moved install plus a separate source-tree `add_subdirectory` consumer, with no `pkg-config`.
+- **Consumers built and run in `checks.package`:**
+  - `find_package(jitterbug 0.1)` against the moved install: `tests/package/consumer.c` (strict C99) and `consumer_cxx` (C++11) for all paths above.
   - `pkg-config` against the moved install (native builds only, not Emscripten): `tests/package/consumer.c` only (strict C99; `--static` for static builds, verifying `-lm`).
   - `add_subdirectory` directly against the source tree (not the moved install): `tests/package/consumer.c` and `consumer_cxx`.
+- **Existing Nix installs (`checks.package-nix`):** invokes `tests/package/check.cmake` with `-DPREFIX=...` on the flake's existing static (`packages.default`) and shared installs in place without moving them, verifying the installed files and running `find_package` and `pkg-config` consumers (without `add_subdirectory`).
+
+Separately, `checks.sanitize` verifies that `cmake --install` on a `-DJB_SANITIZE=ON` build — both for the full build and for each tool directory (`tools/jb-tex`, `tools/jb-mesh`, `tools/jb-bench`) on its own — fails with an error before copying any files.

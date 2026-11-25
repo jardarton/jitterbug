@@ -87,13 +87,13 @@ When built as a subproject, tests, tools, examples and install rules default to 
 
 ## Limitations
 
-What jitterbug does not do, by design or not yet (planned work and known gaps are tracked in [todo.md](todo.md)):
+What jitterbug does not do, by design or not yet (planned work is tracked in [todo.md](todo.md)):
 
 - **A renderer, not an engine.** No windowing, input, audio, physics or scene graph; it produces an RGBA8 frame buffer for your own loop.
 - **No depth buffer.** Ordering is by back-to-front depth sorting (an ordering table), just as on the console, so intersecting polygons can sort imperfectly.
 - **15-bit drawing colour and shared VRAM.** Primitives draw in 15-bit colour (dithered at 1x) into one 1024x512 16-bit VRAM shared by display buffers, palettes and textures (up to 256x256 per page); true-colour drawing is not in 0.1.
 - **Software backend only in 0.1.** Rendering runs on the CPU at 1x–8x (with worker threads on native builds); a Vulkan backend (up to 16x) is planned after 0.1.
-- **Linux and WebAssembly only so far.** Tested on Linux (x86-64, plus arm64, cross-compiled under QEMU and run natively in an Apple silicon NixOS virtual machine, `aarch64-linux`) and single-threaded WebAssembly (Emscripten); macOS and Windows are not yet built or tested.
+- **Linux and WebAssembly only so far.** Tested on Linux (x86-64, plus arm64 — cross-compiled on x86-64 and run under QEMU, and run natively in an Apple silicon NixOS virtual machine, `aarch64-linux`) and single-threaded WebAssembly (Emscripten); macOS and Windows are not yet built or tested.
 - **Not a console emulator.** Does not emulate a PlayStation CPU, BIOS, CD-ROM, DMA or GPU timing, and does not run existing PlayStation software — it is a rendering backend you link into your own C/C++ game or native port.
 
 ## Status

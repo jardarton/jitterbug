@@ -137,7 +137,7 @@ nix develop -c cmake --build build --target demo_record
 - `demo_fade_1x`, `demo_fade_2x`: samples 44 ticks at stride 64 at 1x and 2x, checking that crossing a terrain fade level changes no channel by more than 17 of 255 (two 5-bit steps).
 - `demo_pier`: samples 40 ticks at stride 16 across the pier slow passage (starting at frame 603, at 2x), checking that no post draws in front of the deck.
 - `demo_headless_cli` (`test-headless.cmake`): checks `--record`, pause/step scripts and status-2 CLI refusals.
-- `web/check-browser.mjs`: manual headless Chromium check covering all runs, keys, buttons, phone layout, pause/step and frame rate.
+- `web/check-browser.mjs`: headless Chromium check run in `nix flake check` as `checks.<system>.browser-demo` (`x86_64-linux` and `aarch64-linux`; not run by hosted CI), covering all runs, frame advancement, keys, buttons, phone layout, pause and step. Any non-empty `JB_CHECK_FPS` value (for example `JB_CHECK_FPS=1`) when running it by hand adds a check expecting 30–70 frames of advance between two samples about a second apart (see the script's header comment for the command).
 
 ## Frame time
 

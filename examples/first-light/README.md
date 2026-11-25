@@ -81,7 +81,7 @@ Each frame calls `jb_begin_frame`, updates the cube's palette, draws background,
 - `first_light_web_module` (`web/test-module.cjs`, wasm builds): exercises the page's Emscripten exports and JavaScript FNV-1a hasher under Node against `expected.txt`.
 - `first_light_scene_errors` (`test_scene.c`): checks error handling when `jb_begin_frame` fails.
 - `first_light_headless_cli` (`test-headless.cmake`): checks `--record` formatting preservation, concurrent recording safety, `--pause-at`, and status-2 CLI refusals.
-- `web/check-browser.mjs`: manual headless Chromium check for all runs, keys, frame rate and pause.
+- `web/check-browser.mjs`: headless Chromium check run in `nix flake check` as `checks.<system>.browser-first-light` (`x86_64-linux` and `aarch64-linux`; not run by hosted CI), covering all runs, frame advancement, keys, layout and pause. Any non-empty `JB_CHECK_FPS` value (for example `JB_CHECK_FPS=1`) when running it by hand adds a check expecting 30–70 frames of advance between two samples about a second apart (see the script's header comment for the command).
 
 To re-record `expected.txt` after a deliberate change to the scene or renderer:
 

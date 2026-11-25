@@ -1,13 +1,6 @@
 # Todo
 
-Known gaps in 0.1 and planned work after 0.1.
-
-## Known gaps in 0.1
-
-What stands between 0.1.0 and a finished 0.1: bugs, and checks that the release's own claims still lack. Each item closes without adding a feature, and says what closing it means. Behaviour that is a limit by design is not listed here; it is recorded in [README.md](README.md#limitations) and [include/jitterbug.h](include/jitterbug.h).
-
-- **`jb-mesh` OBJ reader bugs.** `tools/jb-mesh/obj.c` fans polygons with more than 4 corners from the first vertex (wrong for concave n-gons), joins backslash line continuations only before LF (not CRLF), and does not strip inline `#` comments on `mtllib` and `usemtl` lines. Closed when each is fixed, or refused with a clear error, and covered by a test.
-- **Browser checks inside `nix flake check`.** The headless Chromium checks (`examples/demo/web/check-browser.mjs`, `examples/first-light/web/check-browser.mjs`) are run by hand, so the published web demo is the one shipped front-end no automated check runs. Closed when both run as a flake check.
+Planned work after 0.1. Behaviour that is a limit by design is recorded in [README.md](README.md#limitations) and [include/jitterbug.h](include/jitterbug.h).
 
 ## Planned after 0.1
 

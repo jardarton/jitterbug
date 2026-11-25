@@ -128,6 +128,13 @@ def obj(out):
     lines.append("f 13/5/6 12/1/6 11/2/6 10/3/6 9/4/6")  # the cap, round from above
     with open(os.path.join(out, "box.obj"), "w") as f:
         f.write("\n".join(lines) + "\n")
+    # The same box with comments after mtllib and usemtl: it converts to
+    # the same bytes.
+    commented = {"mtllib box.mtl": "mtllib box.mtl # the materials",
+                 "usemtl stone": "usemtl stone\t# rocks, textured ",
+                 "usemtl glass": "usemtl glass # see-through"}
+    with open(os.path.join(out, "box-commented.obj"), "w") as f:
+        f.write("\n".join(commented.get(x, x) for x in lines) + "\n")
     with open(os.path.join(out, "box.mtl"), "w") as f:
         f.write("# Materials for box.obj\n"
                 "newmtl stone\nKd 1.0 1.0 1.0\nmap_Kd rocks.png\n\n"
@@ -155,6 +162,10 @@ def obj(out):
             "f 1/1 4/4 3/3 2/2 # anticlockwise from above\n")
     with open(os.path.join(out, "tiled.obj"), "w", newline="") as f:
         f.write(text)
+    # The same floor with CRLF on every line, the backslash's too: it
+    # converts to the same bytes.
+    with open(os.path.join(out, "tiled-crlf.obj"), "w", newline="") as f:
+        f.write(text.replace("\r\n", "\n").replace("\n", "\r\n"))
 
     # A strip whose u runs over four repeats from a hair below 0, as
     # exporters write it: within half a texel of the edge, so it starts in
@@ -164,6 +175,91 @@ def obj(out):
                 "v -100 0 -20\nv -100 0 20\nv 100 0 20\nv 100 0 -20\n"
                 "vt -0.000001 1\nvt -0.000001 0\nvt 4 0\nvt 4 1\n"
                 "f 1/1 2/2 3/3 4/4\n")
+
+    # Faces of more than four corners, each its own material, cut by ear
+    # clipping (api_files checks the triangles cover each exactly; the
+    # same lists are there): concave ones begun where a fan from the first
+    # corner would leave the face, in planes facing each axis, one tilted
+    # (z = y, where y and z tie), one wound the other way round, and a
+    # convex pentagon. Whole numbers, kept exactly in the .jbm.
+    polygons = [
+        ("lshape", [(40, 0, 0), (40, 10, 0), (10, 10, 0), (10, 40, 0), (0, 40, 0), (0, 0, 0)]),
+        ("arrow", [(30, 0, 10), (30, 0, 0), (50, 0, 20), (30, 0, 40), (30, 0, 30), (0, 0, 30),
+                   (0, 0, 10)]),
+        ("pentagon", [(5, 0, 0), (5, 20, 0), (5, 30, 15), (5, 10, 30), (5, -10, 15)]),
+        ("ushape", [(0, 30, 30), (10, 30, 30), (10, 10, 10), (20, 10, 10), (20, 30, 30),
+                    (30, 30, 30), (30, 0, 0), (0, 0, 0)]),
+        ("star", [(0, -15, 20), (24, -32, 20), (14, -5, 20), (38, 12, 20), (9, 12, 20),
+                  (0, 40, 20), (-9, 12, 20), (-38, 12, 20), (-14, -5, 20), (-24, -32, 20)]),
+        # Convex with corners in the middle of straight edges, as a
+        # subdivided rectangle, one begun on such a corner.
+        ("rectangle", [(0, 0, -5), (20, 0, -5), (40, 0, -5), (40, 20, -5), (20, 20, -5),
+                       (0, 20, -5)]),
+        ("house", [(10, 30, 0), (20, 30, 0), (20, 40, 0), (0, 40, 0), (0, 30, 0)]),
+    ]
+    lines = ["# Polygons for jb-mesh's tests, made by make-inputs.py"]
+    count = 0
+    for name, corners in polygons:
+        for p in corners:
+            lines.append("v %d %d %d" % p)
+        lines.append("usemtl " + name)
+        lines.append("f " + " ".join(str(count + 1 + k) for k in range(len(corners))))
+        count += len(corners)
+    with open(os.path.join(out, "polygons.obj"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    # Faces jb-mesh refuses to cut: one of no area (its corners on a line),
+    # one that doubles back (closed again on its first corner, leaving a
+    # triangle of no area) and one of more corners than it cuts.
+    with open(os.path.join(out, "flat.obj"), "w") as f:
+        f.write("# A face of no area, for jb-mesh's tests\n"
+                "v 0 0 0\nv 1 1 0\nv 2 2 0\nv 3 3 0\nv 4 4 0\nf 1 2 3 4 5\n")
+    with open(os.path.join(out, "doubled.obj"), "w") as f:
+        f.write("# A face closed on its first corner, for jb-mesh's tests\n"
+                "v 0 0 0\nv 10 0 0\nv 10 10 0\nv 0 10 0\nf 1 2 3 4 1\n")
+    with open(os.path.join(out, "huge.obj"), "w") as f:
+        f.write("# A face of 1025 corners, for jb-mesh's tests\nv 0 0 0\nv 1 0 0\nv 0 1 0\n"
+                "f" + " 1 2 3" * 341 + " 1 2\n")
+    # The most corners jb-mesh cuts, 1024: convex, on the parabola y = x x.
+    with open(os.path.join(out, "most.obj"), "w") as f:
+        f.write("# A face of 1024 corners, for jb-mesh's tests\n" +
+                "".join("v %d %d 0\n" % (x, x * x) for x in range(1024)) +
+                "f " + " ".join(str(k + 1) for k in range(1024)) + "\n")
+    # A face whose Newell normal sums infinities of both signs (NaN) in its
+    # largest component: refused, not cut across another axis.
+    with open(os.path.join(out, "nan.obj"), "w") as f:
+        f.write("# A face of no plane, for jb-mesh's tests\nv 0 0 0\n"
+                "v 1e-100 1e200 1e200\nv 3e-100 2e200 1e200\nv 3e-100 2e200 2e200\n"
+                "v 0 0 2e200\nf 1 2 3 4 5\n")
+    # usemtl with only a comment after it (refused).
+    with open(os.path.join(out, "unnamed.obj"), "w") as f:
+        f.write("# A material without a name, for jb-mesh's tests\nv 0 0 0\nv 1 0 0\n"
+                "v 0 1 0\nusemtl # nothing\nf 1 2 3\n")
+    # newmtl with no name (refused).
+    with open(os.path.join(out, "unnamed-mtl.obj"), "w") as f:
+        f.write("# A material file with a nameless material\nmtllib unnamed.mtl\n"
+                "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n")
+    with open(os.path.join(out, "unnamed.mtl"), "w") as f:
+        f.write("# A nameless material, for jb-mesh's tests\nnewmtl\nKd 1 0 0\n")
+
+    # Names with # in them, as exporters write them ("Material #1"), kept
+    # whole, apart from comments after them (space, #, space or the end):
+    # a material file named with a # in it, a commented newmtl, two
+    # materials differing only in their number, and one named mat#1 that
+    # the file does not define (white). api_files checks the colours.
+    with open(os.path.join(out, "names.obj"), "w") as f:
+        f.write("# Material names for jb-mesh's tests, made by make-inputs.py\n"
+                "mtllib a#1.mtl # the materials\n"
+                "v 0 0 0\nv 10 0 0\nv 0 10 0\nv 0 0 10\n"
+                "usemtl Material #1\nf 1 2 3\n"
+                "usemtl Material #2 # green\nf 1 3 4\n"
+                "usemtl mat#1\nf 1 4 2\n"
+                "usemtl blue #\nf 2 4 3\n")
+    with open(os.path.join(out, "a#1.mtl"), "w") as f:
+        f.write("# Materials for names.obj\n"
+                "newmtl Material #1\nKd 1 0 0\n"
+                "newmtl Material #2\nKd 0 1 0\n"
+                "newmtl blue # a commented newmtl\nKd 0 0 1\n")
 
     # A face with an index past the vertices (jb-mesh refuses it).
     with open(os.path.join(out, "broken.obj"), "w") as f:

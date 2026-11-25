@@ -1,0 +1,11 @@
+# A tiled floor for jb-mesh's tests, made by make-inputs.py
+v -6e1 0 -60
+v 60 0 -60
+v 60 0 6.0E+1
+v -60 \
+ 0 60
+vt 0 2
+vt 2 2
+vt 2 0
+vt 0 0
+f 1/1 4/4 3/3 2/2 # anticlockwise from above

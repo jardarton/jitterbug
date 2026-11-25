@@ -9,7 +9,8 @@
  *   f a b c ...       a face of 3 or more corners, each v, v/vt, v//vn or
  *                     v/vt/vn, indices from 1 or negative (from the end);
  *                     3 or 4 corners are kept as a triangle or quad, more
- *                     are cut into a fan of triangles from the first
+ *                     (up to MAX_POLYGON) are cut into triangles by ear
+ *                     clipping (ear_clip)
  *   usemtl name       the material of the faces after it ("default" before
  *                     any)
  *   mtllib file...    MTL files beside the OBJ: newmtl, Kd (the colour),
@@ -61,8 +62,10 @@ static char *read_line(FILE *f, char **buf, size_t *cap, long *line)
             ++*line;
         any = 1;
         if (c == '\n') {
-            if (n > 0 && (*buf)[n - 1] == '\\') {
-                n--;
+            /* A backslash before the end, LF or CRLF, joins the next. */
+            size_t e = n > 0 && (*buf)[n - 1] == '\r' ? n - 1 : n;
+            if (e > 0 && (*buf)[e - 1] == '\\') {
+                n = e - 1;
                 ++*line;
                 continue;
             }
@@ -125,13 +128,24 @@ static int numbers(const char *s, double *out, int max)
     }
 }
 
-/* The rest of the line after the keyword, without surrounding space. */
+/* At s[i] (after the keyword and its space), a # with space or tab before
+   it and space, tab or the end after it: a comment after a name. A #
+   within a name ("mat#1", "Material #1") is the name's. */
+static int comment_at(const char *s, size_t i)
+{
+    return s[i] == '#' && (i == 0 || s[i - 1] == ' ' || s[i - 1] == '\t') &&
+           (s[i + 1] == ' ' || s[i + 1] == '\t' || s[i + 1] == '\0');
+}
+
+/* The rest of the line after the keyword, without surrounding space or a
+   comment (comment_at). */
 static void rest(const char *s, char *out, size_t n)
 {
     size_t len;
 
     s = skip_space(s);
-    len = strlen(s);
+    for (len = 0; s[len] != '\0' && !comment_at(s, len); len++)
+        ;
     while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t'))
         len--;
     if (len >= n)
@@ -170,6 +184,11 @@ static int read_mtl(const char *path, jbm_scene *s)
         l = skip_space(l);
         if (is(l, "newmtl")) {
             rest(l + 6, name, sizeof name);
+            if (name[0] == '\0') {
+                fprintf(stderr, "jb-mesh: %s:%ld: newmtl needs a name\n", path, line);
+                rc = -1;
+                break;
+            }
             cur = jbm_add_material(s, name);
             if (cur < 0) {
                 fprintf(stderr, "jb-mesh: %s:%ld: a material name too long or no memory\n",
@@ -202,6 +221,114 @@ static int read_mtl(const char *path, jbm_scene *s)
     free(buf);
     fclose(f);
     return rc;
+}
+
+/* The most corners of a face that is cut into triangles: ear clipping takes
+   time growing with the cube of the corners at worst, so a hostile face
+   is refused rather than taking hours. */
+enum { MAX_POLYGON = 1024 };
+
+/* What ear_clip works in, MAX_POLYGON corners' worth. */
+typedef struct ear_work {
+    double u[MAX_POLYGON], v[MAX_POLYGON]; /* the corners in the face's plane */
+    int prev[MAX_POLYGON], next[MAX_POLYGON];
+    unsigned char reflex[MAX_POLYGON]; /* not a strictly convex corner */
+} ear_work;
+
+/* Twice the signed area of the triangle i, j, k in w's plane: positive
+   for anticlockwise. */
+static double orient(const ear_work *w, int i, int j, int k)
+{
+    return (w->u[j] - w->u[i]) * (w->v[k] - w->v[i]) -
+           (w->v[j] - w->v[i]) * (w->u[k] - w->u[i]);
+}
+
+/* The corner at j is an ear: strictly convex, and no other reflex corner
+   (in a simple polygon only those can be within it) inside or on the
+   edges of the triangle it makes with its neighbours, but for those at the
+   triangle's own corners' positions (where a polygon touches itself). */
+static int is_ear(const ear_work *w, int j)
+{
+    int a = w->prev[j], c = w->next[j], k;
+
+    if (w->reflex[j])
+        return 0;
+    for (k = w->next[c]; k != a; k = w->next[k]) {
+        if (!w->reflex[k] || (w->u[k] == w->u[a] && w->v[k] == w->v[a]) ||
+            (w->u[k] == w->u[j] && w->v[k] == w->v[j]) ||
+            (w->u[k] == w->u[c] && w->v[k] == w->v[c]))
+            continue;
+        if (orient(w, a, j, k) >= 0.0 && orient(w, j, c, k) >= 0.0 && orient(w, c, a, k) >= 0.0)
+            return 0;
+    }
+    return 1;
+}
+
+/*
+ * The n corners (5..MAX_POLYGON) of a face as n - 2 triangles, into tri
+ * (3 (n - 2) corner indices, each triangle going round as the face does),
+ * by ear clipping in the plane the face's Newell normal is most nearly
+ * along. The candidates go round the face from corner 1, and after each
+ * ear from the corner after it, so a convex face (every candidate an ear)
+ * is cut as a fan from corner 0, as jb-mesh cut every face before. Double
+ * operations only (-ffp-contract=off), so the same everywhere. Returns 0,
+ * -1 for a face with no area, or -2 for one with no ear left (one that
+ * crosses itself or doubles back).
+ */
+static int ear_clip(const jbm_corner *poly, int n, ear_work *w, int *tri)
+{
+    double nn[3] = {0.0, 0.0, 0.0}, most = 0.0;
+    int i, axis = 0, au, av, cur = 1, tries = 0, left = n, t = 0;
+
+    for (i = 0; i < n; i++) {
+        const double *p = poly[i].p, *q = poly[(i + 1) % n].p, *o = poly[0].p;
+        double px = p[0] - o[0], py = p[1] - o[1], pz = p[2] - o[2];
+        double qx = q[0] - o[0], qy = q[1] - o[1], qz = q[2] - o[2];
+        nn[0] += (py - qy) * (pz + qz);
+        nn[1] += (pz - qz) * (px + qx);
+        nn[2] += (px - qx) * (py + qy);
+    }
+    for (i = 0; i < 3; i++) {
+        double m = nn[i] < 0.0 ? -nn[i] : nn[i];
+        if (m - m != 0.0) /* infinite or NaN: no plane to cut it in */
+            return -1;
+        if (m > most)
+            most = m, axis = i;
+    }
+    if (!(most > 0.0))
+        return -1;
+    /* The other two axes in turn after it (x, y round z), swapped when the
+       face looks down the axis, so the face goes anticlockwise. */
+    au = (axis + 1) % 3, av = (axis + 2) % 3;
+    if (nn[axis] < 0.0)
+        i = au, au = av, av = i;
+    for (i = 0; i < n; i++) {
+        w->u[i] = poly[i].p[au] - poly[0].p[au];
+        w->v[i] = poly[i].p[av] - poly[0].p[av];
+        w->prev[i] = (i + n - 1) % n;
+        w->next[i] = (i + 1) % n;
+    }
+    for (i = 0; i < n; i++)
+        w->reflex[i] = !(orient(w, w->prev[i], i, w->next[i]) > 0.0);
+    while (left > 3) {
+        if (is_ear(w, cur)) {
+            int a = w->prev[cur], c = w->next[cur];
+            tri[t++] = a, tri[t++] = cur, tri[t++] = c;
+            w->next[a] = c, w->prev[c] = a;
+            left--;
+            w->reflex[a] = !(orient(w, w->prev[a], a, c) > 0.0);
+            w->reflex[c] = !(orient(w, a, c, w->next[c]) > 0.0);
+            cur = c, tries = 0;
+        } else {
+            cur = w->next[cur];
+            if (++tries == left)
+                return -2;
+        }
+    }
+    if (!(orient(w, w->prev[cur], cur, w->next[cur]) > 0.0))
+        return -2;
+    tri[t++] = w->prev[cur], tri[t++] = cur, tri[t++] = w->next[cur];
+    return 0;
 }
 
 /* One corner "v", "v/vt", "v//vn" or "v/vt/vn": the indices (0-based,
@@ -252,6 +379,8 @@ int jbm_read_obj(const char *path, jbm_scene *s)
     const char *l;
     jbm_corner *poly = NULL;
     size_t poly_cap = 0;
+    ear_work *ears = NULL;
+    int *tri = NULL;
 
     if (f == NULL) {
         fprintf(stderr, "jb-mesh: %s: cannot open it\n", path);
@@ -313,6 +442,8 @@ int jbm_read_obj(const char *path, jbm_scene *s)
                     break;
                 for (e = t; *e != '\0' && *e != ' ' && *e != '\t'; e++)
                     ;
+                if (count == MAX_POLYGON)
+                    ERR("a face of more than %d corners", MAX_POLYGON);
                 if (corner(t, (size_t)(e - t), pos.n, tex.n, nrm.n, idx) != 0)
                     ERR("face corner \"%.*s\" is not v, v/vt, v//vn or v/vt/vn with indices "
                         "of vertices there are",
@@ -352,26 +483,42 @@ int jbm_read_obj(const char *path, jbm_scene *s)
                 if (jbm_add_face(s, &face) != 0)
                     ERR("no memory");
             } else {
-                for (k = 1; k + 1 < count; k++) {
+                int r;
+                if (ears == NULL) {
+                    ears = malloc(sizeof *ears);
+                    tri = malloc(3 * (MAX_POLYGON - 2) * sizeof *tri);
+                    if (ears == NULL || tri == NULL)
+                        ERR("no memory");
+                }
+                r = ear_clip(poly, (int)count, ears, tri);
+                if (r == -1)
+                    ERR("a face of %lu corners with no area", (unsigned long)count);
+                if (r != 0)
+                    ERR("a face of %lu corners that cannot be cut into triangles (does it "
+                        "cross itself?)",
+                        (unsigned long)count);
+                for (k = 0; k + 2 < count; k++) {
                     jbm_face face;
                     face.vertices = 3;
                     face.material = material;
-                    face.c[0] = poly[0];
-                    face.c[1] = poly[k];
-                    face.c[2] = poly[k + 1];
+                    face.c[0] = poly[tri[3 * k]];
+                    face.c[1] = poly[tri[3 * k + 1]];
+                    face.c[2] = poly[tri[3 * k + 2]];
                     if (jbm_add_face(s, &face) != 0)
                         ERR("no memory");
                 }
             }
         } else if (is(l, "usemtl")) {
             rest(l + 6, name, 128);
+            if (name[0] == '\0')
+                ERR("usemtl needs a name");
             material = jbm_add_material(s, name);
             if (material < 0)
                 ERR("material name too long, or no memory");
         } else if (is(l, "mtllib")) {
             /* One or more file names, separated by spaces. */
             const char *t = skip_space(l + 6);
-            while (*t != '\0') {
+            while (*t != '\0' && !comment_at(t, 0)) {
                 const char *e;
                 char file[2048];
                 for (e = t; *e != '\0' && *e != ' ' && *e != '\t'; e++)
@@ -394,6 +541,8 @@ done:
     fclose(f);
     free(buf);
     free(poly);
+    free(ears);
+    free(tri);
     free(pos.v);
     free(tex.v);
     free(nrm.v);

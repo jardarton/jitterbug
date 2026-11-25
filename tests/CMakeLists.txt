@@ -773,6 +773,28 @@ jb_expect_status(jb_mesh_input_kind 1 "the input must be .obj, .gltf or .glb"
 jb_expect_status(jb_mesh_bad_index 1 "broken.obj:5: face corner \"9\""
   NOT "Sanitizer|runtime error"
   COMMAND jb-mesh ${_in}/broken.obj ${_to}.jbm)
+jb_expect_status(jb_mesh_flat_face 1 "flat.obj:7: a face of 5 corners with no area"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh ${_in}/flat.obj ${_to}.jbm)
+jb_expect_status(jb_mesh_doubled_face 1 "doubled.obj:6: a face of 5 corners that cannot be cut into triangles"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh ${_in}/doubled.obj ${_to}.jbm)
+jb_expect_status(jb_mesh_huge_face 1 "huge.obj:5: a face of more than 1024 corners"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh ${_in}/huge.obj ${_to}.jbm)
+# The most corners jb-mesh cuts (a status 0 test, not a pinned output).
+jb_expect_status(jb_mesh_most_corners 0 "1022 triangles"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh --fit 1000 ${_in}/most.obj ${_to}-most.jbm)
+jb_expect_status(jb_mesh_nan_face 1 "nan.obj:7: a face of 5 corners with no area"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh --fit 1000 ${_in}/nan.obj ${_to}.jbm)
+jb_expect_status(jb_mesh_unnamed 1 "unnamed.obj:5: usemtl needs a name"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh ${_in}/unnamed.obj ${_to}.jbm)
+jb_expect_status(jb_mesh_unnamed_mtl 1 "unnamed.mtl:2: newmtl needs a name"
+  NOT "Sanitizer|runtime error"
+  COMMAND jb-mesh ${_in}/unnamed-mtl.obj ${_to}.jbm)
 jb_expect_status(jb_mesh_missing_texture 1 "nothing.png: cannot read it"
   NOT "Sanitizer|runtime error"
   COMMAND jb-mesh --texture stone=${_in}/nothing.png ${_in}/box.obj ${_to}.jbm)

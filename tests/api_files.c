@@ -9,7 +9,8 @@
  *      fills; parse needs 2-byte alignment; a file's extra palettes.
  *   2. Meshes: what jb_mesh_load_mem makes (counts, arrays, materials and
  *      their texture copies), the file form, jb_mesh_destroy, and
- *      jb_destroy freeing what was left (a counting allocator).
+ *      jb_destroy freeing what was left (a counting allocator); the
+ *      triangles jb-mesh cuts faces of more than four corners into.
  *   3. The round trip: textures and meshes from the files drawn into
  *      frames (1x GTE, 2x float, 2x precise and perspective-correct), the
  *      frames' hashes against those stored below, so every build must
@@ -310,6 +311,146 @@ static void test_meshes(void)
     jb_destroy(jb);
     check("jb_destroy frees every loaded mesh", cnt.live, 0);
     jb_destroy(other);
+}
+
+/* The faces of more than four corners in polygons.jbm (make-inputs.py, the
+   same corners), each its own material, cut into triangles by jb-mesh's
+   ear clipping: every one a triangle facing the polygon's way, their
+   doubled areas (cross products, exact in integers) summing to its Newell
+   normal, and in the plane across its largest axis every sample point of
+   a fine grid inside the polygon in exactly one triangle and every one
+   outside in none. */
+static const int lshape[] = {40, 0, 0, 40, 10, 0, 10, 10, 0, 10, 40, 0, 0, 40, 0, 0, 0, 0};
+static const int arrow[] = {30, 0, 10, 30, 0, 0,  50, 0, 20, 30, 0,
+                            40, 30, 0, 30, 0, 0, 30, 0,  0, 10};
+static const int pentagon[] = {5, 0, 0, 5, 20, 0, 5, 30, 15, 5, 10, 30, 5, -10, 15};
+static const int ushape[] = {0,  30, 30, 10, 30, 30, 10, 10, 10, 20, 10, 10,
+                             20, 30, 30, 30, 30, 30, 30, 0,  0,  0,  0,  0};
+static const int star[] = {0,   -15, 20, 24, -32, 20, 14,  -5, 20, 38,  12, 20,
+                           9,   12,  20, 0,  40,  20, -9,  12, 20, -38, 12, 20,
+                           -14, -5,  20, -24, -32, 20};
+static const int rectangle[] = {0, 0, -5, 20, 0, -5, 40, 0, -5, 40, 20, -5, 20, 20, -5, 0, 20, -5};
+static const int house[] = {10, 30, 0, 20, 30, 0, 20, 40, 0, 0, 40, 0, 0, 30, 0};
+
+/* Twice the signed area of a, b, c in the plane (u, v). */
+static long long orient2(const long long *a, const long long *b, const long long *c)
+{
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
+
+static void check_polygon(const char *name, const jb_mesh *m, int material, const int *p, int n)
+{
+    long long nn[3] = {0, 0, 0}, sum[3] = {0, 0, 0}, poly[16][2], lo[2], hi[2];
+    int i, k, axis = 0, au, av, faces = 0, wrong = 0;
+    char what[128];
+
+    for (i = 0; i < n; i++) {
+        const int *a = p + 3 * i, *b = p + 3 * ((i + 1) % n);
+        nn[0] += (long long)(a[1] - b[1]) * (a[2] + b[2]);
+        nn[1] += (long long)(a[2] - b[2]) * (a[0] + b[0]);
+        nn[2] += (long long)(a[0] - b[0]) * (a[1] + b[1]);
+    }
+    for (i = 1; i < 3; i++)
+        if (llabs(nn[i]) > llabs(nn[axis]))
+            axis = i;
+    au = (axis + 1) % 3, av = (axis + 2) % 3;
+    if (nn[axis] < 0)
+        i = au, au = av, av = i;
+    /* The plane's coordinates times 1024, with samples 341 and 643 past
+       each whole number: on no edge between these whole-number corners (one
+       there would count as in no triangle, and fail). */
+    for (i = 0; i < n; i++) {
+        poly[i][0] = 1024LL * p[3 * i + au], poly[i][1] = 1024LL * p[3 * i + av];
+        for (k = 0; k < 2; k++) {
+            lo[k] = i == 0 || poly[i][k] < lo[k] ? poly[i][k] : lo[k];
+            hi[k] = i == 0 || poly[i][k] > hi[k] ? poly[i][k] : hi[k];
+        }
+    }
+    for (i = 0; i < m->face_count; i++) {
+        const jb_mesh_face *f = &m->faces[i];
+        long long c[3], e[2][3];
+        if (f->material != material)
+            continue;
+        faces++;
+        for (k = 0; k < 2; k++) {
+            const jb_gte_vec *a = &m->positions[f->v[0]], *b = &m->positions[f->v[k + 1]];
+            e[k][0] = b->x - a->x, e[k][1] = b->y - a->y, e[k][2] = b->z - a->z;
+        }
+        c[0] = e[0][1] * e[1][2] - e[0][2] * e[1][1];
+        c[1] = e[0][2] * e[1][0] - e[0][0] * e[1][2];
+        c[2] = e[0][0] * e[1][1] - e[0][1] * e[1][0];
+        if (f->vertices != 3 || c[0] * nn[0] + c[1] * nn[1] + c[2] * nn[2] <= 0)
+            wrong++;
+        for (k = 0; k < 3; k++)
+            sum[k] += c[k];
+    }
+    snprintf(what, sizeof what, "%s: triangles", name);
+    check(what, faces, n - 2);
+    snprintf(what, sizeof what, "%s: every one a triangle facing its way", name);
+    check(what, wrong, 0);
+    snprintf(what, sizeof what, "%s: their areas are the polygon's", name);
+    check(what, sum[0] == nn[0] && sum[1] == nn[1] && sum[2] == nn[2], 1);
+    wrong = 0;
+    {
+        long long s[2];
+        for (s[1] = lo[1] + 643; s[1] < hi[1]; s[1] += 1024)
+            for (s[0] = lo[0] + 341; s[0] < hi[0]; s[0] += 1024) {
+                int inside = 0, covered = 0;
+                for (i = 0; i < n; i++) {
+                    const long long *a = poly[i], *b = poly[(i + 1) % n];
+                    if ((a[1] > s[1]) != (b[1] > s[1]) &&
+                        (orient2(a, b, s) > 0) == (b[1] > a[1]))
+                        inside = !inside;
+                }
+                for (i = 0; i < m->face_count; i++) {
+                    const jb_mesh_face *f = &m->faces[i];
+                    long long t[3][2];
+                    if (f->material != material)
+                        continue;
+                    for (k = 0; k < 3; k++) {
+                        const jb_gte_vec *q = &m->positions[f->v[k]];
+                        const long long xyz[3] = {q->x, q->y, q->z};
+                        t[k][0] = 1024 * xyz[au], t[k][1] = 1024 * xyz[av];
+                    }
+                    if (orient2(t[0], t[1], s) > 0 && orient2(t[1], t[2], s) > 0 &&
+                        orient2(t[2], t[0], s) > 0)
+                        covered++;
+                }
+                wrong += covered != inside;
+            }
+    }
+    snprintf(what, sizeof what, "%s: the triangles cover it once, and nothing outside", name);
+    check(what, wrong, 0);
+}
+
+static void test_polygons(void)
+{
+    jb_context *jb = must_create(NULL);
+    jb_mesh m;
+    char path[1024];
+
+    path_of(path, sizeof path, "expected/polygons.jbm");
+    check("polygons", jb_mesh_load(jb, path, NULL, 0, &m), JB_OK);
+    check("polygons: materials", m.material_count, 7);
+    check_polygon("lshape", &m, 0, lshape, 6);
+    check_polygon("arrow", &m, 1, arrow, 7);
+    check_polygon("pentagon", &m, 2, pentagon, 5);
+    check_polygon("ushape", &m, 3, ushape, 8);
+    check_polygon("star", &m, 4, star, 10);
+    check_polygon("rectangle", &m, 5, rectangle, 6);
+    check_polygon("house", &m, 6, house, 5);
+
+    /* Names with # in them kept whole, comments after them not
+       (names.obj, a#1.mtl): "Material #1" red, "Material #2" green,
+       "mat#1" white (not in the file), "blue # ..." blue. */
+    path_of(path, sizeof path, "expected/names.jbm");
+    check("names", jb_mesh_load(jb, path, NULL, 0, &m), JB_OK);
+    check("names: materials", m.material_count, 4);
+    check("Material #1 red", m.materials[0].color, JB_RGB(255, 0, 0));
+    check("Material #2 green", m.materials[1].color, JB_RGB(0, 255, 0));
+    check("mat#1 white", m.materials[2].color, JB_RGB(255, 255, 255));
+    check("blue, its comment stripped", m.materials[3].color, JB_RGB(0, 0, 255));
+    jb_destroy(jb);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -989,6 +1130,7 @@ int main(int argc, char **argv)
     }
     test_textures();
     test_meshes();
+    test_polygons();
     test_round_trip(0);
     test_texture_refusals();
     test_mesh_refusals();

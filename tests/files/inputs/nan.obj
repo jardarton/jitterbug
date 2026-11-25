@@ -1,0 +1,7 @@
+# A face of no plane, for jb-mesh's tests
+v 0 0 0
+v 1e-100 1e200 1e200
+v 3e-100 2e200 1e200
+v 3e-100 2e200 2e200
+v 0 0 2e200
+f 1 2 3 4 5

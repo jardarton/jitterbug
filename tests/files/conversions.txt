@@ -14,12 +14,16 @@ sky15d.jbt       jb-tex --depth 15 --dither inputs/sky.png
 water4.jbt       jb-tex --depth 4 --frame inputs/water1.png --frame inputs/water2.png inputs/water0.png
 bricks8r.jbt     jb-tex --repeat inputs/bricks.png
 box.jbm          jb-mesh --texture stone=expected/rocks8.jbt inputs/box.obj
+box-commented.jbm jb-mesh --texture stone=expected/rocks8.jbt inputs/box-commented.obj
 box-scaled.jbm   jb-mesh --fit 1000 --texture stone=inputs/rocks.png --blend glass=add --double-sided * inputs/box.obj
 box-flat.jbm     jb-mesh --no-normals --scale 2.5 --unlit glass --raw stone --texture stone=expected/rocks4.jbt inputs/box.obj
 hexagon.jbm      jb-mesh inputs/hexagon.obj
 hexagon-plain.jbm jb-mesh --no-colors --blend default=quarter inputs/hexagon.obj
+polygons.jbm     jb-mesh inputs/polygons.obj
+names.jbm        jb-mesh inputs/names.obj
 pyramid.jbm      jb-mesh --texture sides=expected/bricks8r.jbt inputs/pyramid.gltf
 pyramid-glb.jbm  jb-mesh --texture sides=expected/bricks8r.jbt inputs/pyramid.glb
 pyramid-png.jbm  jb-mesh --texture sides=inputs/bricks.png --lit base --single-sided sides inputs/pyramid.gltf
 tiled.jbm        jb-mesh --texture default=expected/bricks8r.jbt inputs/tiled.obj
+tiled-crlf.jbm   jb-mesh --texture default=expected/bricks8r.jbt inputs/tiled-crlf.obj
 edge.jbm         jb-mesh --texture default=expected/bricks8r.jbt inputs/edge.obj

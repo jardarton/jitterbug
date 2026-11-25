@@ -1,0 +1,14 @@
+# Material names for jb-mesh's tests, made by make-inputs.py
+mtllib a#1.mtl # the materials
+v 0 0 0
+v 10 0 0
+v 0 10 0
+v 0 0 10
+usemtl Material #1
+f 1 2 3
+usemtl Material #2 # green
+f 1 3 4
+usemtl mat#1
+f 1 4 2
+usemtl blue #
+f 2 4 3

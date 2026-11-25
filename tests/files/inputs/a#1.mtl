@@ -1,0 +1,7 @@
+# Materials for names.obj
+newmtl Material #1
+Kd 1 0 0
+newmtl Material #2
+Kd 0 1 0
+newmtl blue # a commented newmtl
+Kd 0 0 1

@@ -689,6 +689,26 @@
           };
         };
 
+      # An example's web page (packages.first-light-web, packages.demo-web)
+      # in headless Chromium, served on loopback: every run of its
+      # expected.txt, its keys and its layout (examples/PAGE/web/check-browser.mjs).
+      browserCheck =
+        pkgs: page:
+        let
+          web = wasm pkgs {
+            tests = false;
+            inherit page;
+          };
+        in
+        pkgs.runCommand "jitterbug-browser-${page}" { nativeBuildInputs = [ pkgs.nodejs ]; } ''
+          # Chromium wants a writable home and caches.
+          export HOME=$TMPDIR/home XDG_CONFIG_HOME=$TMPDIR/config XDG_CACHE_HOME=$TMPDIR/cache
+          # The script has its own deadlines; this is the backstop.
+          timeout -k 10 20m node ${src}/examples/${page}/web/check-browser.mjs ${web} \
+            ${src}/examples/${page}/expected.txt ${pkgs.chromium}/bin/chromium
+          touch $out
+        '';
+
       # The determinism checks (docs/determinism.md) beyond the builds above.
       #
       # aarch64-linux, cross-compiled from x86-64 (with gcc, or with clang)
@@ -912,7 +932,9 @@
           package = packageCheck pkgs;
           # The same through packages.default and the shared build.
           package-nix = packageNixCheck pkgs;
-
+          # The web pages in headless Chromium (not in hosted CI).
+          browser-first-light = browserCheck pkgs "first-light";
+          browser-demo = browserCheck pkgs "demo";
         }
         # Determinism (docs/determinism.md): other optimisation levels;
         # x86-64-v3 and arm64 only on an x86-64 build machine, which builds

@@ -25,6 +25,8 @@
  *   off        with the cache off (jbi_set_clut_cache), the self-overwriting
  *              sprite reads the entries it has already written, as the seed
  *              did
+ *   rollback   a temporary draw reloads a changed CLUT, then rollback
+ *              restores the palette cached before that draw
  * and each case's VRAM must be the same at every thread count and scale.
  */
 #include <stdio.h>
@@ -298,6 +300,32 @@ static uint16_t *cases(const Run *r)
     row_back(g.jb, ROW + 50, got);
     for (i = 0; i < 256; ++i)
         check_px(what, i, got[i], 0);
+
+    /* The cached entries and the backing VRAM hold different pixels. */
+    palette(&g, CLUT_A, 7);
+    put(&g, 0x01000000u);
+    sprite(&g, 0, ROW + 56, 1, CLUT_A);
+    spoil_fill(&g, CLUT_A);
+    send(&g);
+    if (jbi_checkpoint_begin(g.jb) != JBI_CHECKPOINT_OK) {
+        printf("FAIL %s: no checkpoint\n", r->name);
+        exit(1);
+    }
+    put(&g, 0x01000000u);
+    sprite(&g, 0, ROW + 57, 1, CLUT_A);
+    jbi_gp0(g.jb, g.w, g.n);
+    g.n = 0;
+    jbi_store_1x(g.jb, 0, ROW + 57, 256, 1, got);
+    check_px("checkpoint loads the updated palette", 0, got[0], 0x001fu);
+    jbi_checkpoint_rollback(g.jb);
+    row_back(g.jb, ROW + 57, got);
+    check_px("checkpoint restores the drawn row", 0, got[0], 0);
+    sprite(&g, 0, ROW + 58, 1, CLUT_A);
+    send(&g);
+    row_back(g.jb, ROW + 58, got);
+    for (i = 0; i < 256; ++i)
+        check_px("checkpoint restores the cached palette", i, got[i],
+                 r->cache ? entry(7, i) : 0x001fu);
 
     /* pool: 700 loads of 256 entries between two flushes. */
     palette(&g, CLUT_A, 4);

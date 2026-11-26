@@ -54,6 +54,7 @@ void jbi_soft_load(jbi_backend *b, int x, int y, int w, int h, const uint16_t *s
     int i, j;
 
     jbi_soft_flush(s);
+    jbi_soft_checkpoint_touch(s, x, y, w, h);
     for (j = 0; j < h; ++j) {
         int yy = (y + j) & (JBI_VRAM_H - 1);
         uint16_t *row = s->vram + (size_t)yy * JBI_VRAM_W;
@@ -121,6 +122,7 @@ void jbi_soft_copy(jbi_backend *b, int sx, int sy, int dx, int dy, int w, int h,
     int i, j;
 
     jbi_soft_flush(s);
+    jbi_soft_checkpoint_touch(s, dx, dy, w, h);
     /* Stale 1x source pixels (soft.c): the destination's are stale too. */
     if (jbi_soft_lowres_stale(s, sx, sy, w, h))
         jbi_soft_lowres_mark(s, dx, dy, w, h);

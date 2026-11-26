@@ -58,6 +58,7 @@
  * instance's own, created when a configuration first asks for more than
  * one thread and joined when the backend is destroyed.
  */
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,6 +143,109 @@ static int any_rect(const uint32_t *tiles, int x, int y, int w, int h)
             return 1;
     }
     return 0;
+}
+
+/* Tile buffers share VRAM's layout. Only the marked tiles are copied. */
+static void copy_tiles(uint16_t *dst, const uint16_t *src, int scale, int y, uint32_t cols)
+{
+    int size = (1 << TILE_SHIFT) * scale;
+    int stride = JBI_VRAM_W * scale;
+
+    for (int x = 0; cols != 0; ++x, cols >>= 1) {
+        size_t start = (size_t)y * size * stride + x * size;
+
+        if (!(cols & 1))
+            continue;
+        for (int row = 0; row < size; ++row) {
+            size_t off = start + (size_t)row * stride;
+
+            memcpy(dst + off, src + off, (size_t)size * sizeof *dst);
+        }
+    }
+}
+
+static void save_tile_row(jbi_saved_vram *saved, const uint16_t *src,
+                          int scale, int row, uint32_t cols)
+{
+    copy_tiles(saved->pixels, src, scale, row, cols & ~saved->tiles[row]);
+    saved->tiles[row] |= cols;
+}
+
+static int soft_checkpoint_begin(jbi_backend *b)
+{
+    jbi_soft *s = (jbi_soft *)b;
+    jbi_soft_checkpoint *cp = &s->checkpoint;
+    size_t pixels = (size_t)JBI_VRAM_W * JBI_VRAM_H;
+
+    assert(!cp->active);
+    if (cp->lo.pixels == NULL)
+        cp->lo.pixels = jbi_calloc(&s->alloc, pixels, sizeof(uint16_t));
+    if (cp->lo.pixels == NULL)
+        return 0;
+    if (cp->scale != s->scale) {
+        jbi_free(&s->alloc, cp->hi.pixels);
+        cp->hi.pixels = NULL;
+        cp->scale = 0;
+        if (s->hvram != NULL) {
+            cp->hi.pixels = jbi_calloc(&s->alloc, pixels * s->scale * s->scale,
+                                       sizeof(uint16_t));
+            if (cp->hi.pixels == NULL)
+                return 0;
+        }
+        cp->scale = s->scale;
+    }
+    jbi_soft_flush(s);
+    memcpy(cp->stale, s->stale, sizeof cp->stale);
+    cp->stale_any = s->stale_any;
+    cp->clut_valid = s->clut_valid;
+    cp->clut_x = s->clut_x;
+    cp->clut_y = s->clut_y;
+    cp->clut_n = s->clut_n;
+    if (s->clut_valid)
+        memcpy(cp->palette, s->palettes, (size_t)s->clut_n * sizeof(uint16_t));
+    cp->active = 1;
+    return 1;
+}
+
+static void soft_checkpoint_rollback(jbi_backend *b)
+{
+    jbi_soft *s = (jbi_soft *)b;
+    jbi_soft_checkpoint *cp = &s->checkpoint;
+
+    assert(cp->active && cp->scale == s->scale);
+    jbi_soft_flush(s);
+    for (int row = 0; row < TILE_ROWS; ++row) {
+        copy_tiles(s->vram, cp->lo.pixels, 1, row, cp->lo.tiles[row]);
+        if (s->hvram != NULL)
+            copy_tiles(s->hvram, cp->hi.pixels, s->scale, row, cp->hi.tiles[row]);
+        cp->lo.tiles[row] = cp->hi.tiles[row] = 0;
+    }
+    memcpy(s->stale, cp->stale, sizeof s->stale);
+    s->stale_any = cp->stale_any;
+    s->clut_valid = cp->clut_valid;
+    s->clut_x = cp->clut_x;
+    s->clut_y = cp->clut_y;
+    s->clut_n = cp->clut_n;
+    s->clut_at = 0;
+    s->pool_used = cp->clut_valid ? cp->clut_n : 0;
+    if (cp->clut_valid)
+        memcpy(s->palettes, cp->palette, (size_t)cp->clut_n * sizeof(uint16_t));
+    cp->active = 0;
+}
+
+void jbi_soft_checkpoint_touch(jbi_soft *s, int x, int y, int w, int h)
+{
+    jbi_soft_checkpoint *cp = &s->checkpoint;
+    uint32_t tiles[TILE_ROWS] = {0};
+
+    if (!cp->active)
+        return;
+    mark_rect(tiles, x, y, w, h);
+    for (int row = 0; row < TILE_ROWS; ++row) {
+        save_tile_row(&cp->lo, s->vram, 1, row, tiles[row]);
+        if (s->hvram != NULL)
+            save_tile_row(&cp->hi, s->hvram, s->scale, row, tiles[row]);
+    }
 }
 
 /* The 1x pixels a primitive may write. */
@@ -307,6 +411,8 @@ static void resolve_tiles(jbi_soft *s, const uint32_t *tiles)
     for (t = 0; t < TILE_ROWS; ++t) {
         uint32_t todo = tiles[t] & s->stale[t];
 
+        if (s->checkpoint.active)
+            save_tile_row(&s->checkpoint.lo, s->vram, 1, t, todo);
         for (c = 0; todo != 0 && c < TILE_COLS; ++c) {
             if (!(todo & (1u << c)))
                 continue;
@@ -392,6 +498,7 @@ void jbi_soft_replicate(jbi_soft *s)
 {
     int x, y;
 
+    assert(!s->checkpoint.active);
     if (s->hvram == NULL)
         return;
     for (y = 0; y < JBI_VRAM_H; ++y)
@@ -446,6 +553,13 @@ static void flush_on(jbi_soft *s, int bands)
     int t;
 
     if (s->queued > 0) {
+        if (s->checkpoint.active) {
+            for (t = 0; t < TILE_ROWS; ++t) {
+                save_tile_row(&s->checkpoint.lo, s->vram, 1, t, s->dirty_1x[t]);
+                if (s->hvram != NULL)
+                    save_tile_row(&s->checkpoint.hi, s->hvram, s->scale, t, s->dirty[t]);
+            }
+        }
         job.s = s;
         job.count = s->queued;
         job.skip_1x = skip_1x(s);
@@ -522,6 +636,10 @@ void jbi_soft_submit(jbi_soft *s, const jbi_prim *p)
         jbi_rows all = {BAND_SHIFT, 1, 0};
         jbi_prim one;
 
+        if (s->checkpoint.active && p->row0 <= p->row1) {
+            prim_bounds(p, &x, &y, &w, &h);
+            jbi_soft_checkpoint_touch(s, x, y, w, h);
+        }
         if (!paletted || live) {
             if (p->row0 <= p->row1)
                 jbi_raster_prim(p, &all, &s->target);
@@ -780,6 +898,8 @@ static void soft_destroy(jbi_backend *b)
     jbi_soft_flush(s);
     jbi_pool_destroy(s->pool);
     drop_scaled(s);
+    jbi_free(&alloc, s->checkpoint.lo.pixels);
+    jbi_free(&alloc, s->checkpoint.hi.pixels);
     jbi_free(&alloc, s->palettes);
     jbi_free(&alloc, s->vram);
     jbi_free(&alloc, s);
@@ -820,6 +940,8 @@ jbi_backend *jbi_soft_create(const jbi_config *cfg, int *scale)
     s->base.store_1x = jbi_soft_store_1x;
     s->base.copy = jbi_soft_copy;
     s->base.flush = soft_flush;
+    s->base.checkpoint_begin = soft_checkpoint_begin;
+    s->base.checkpoint_rollback = soft_checkpoint_rollback;
     s->base.scanout = jbi_soft_scanout;
     s->log = cfg->log;
     s->log_user = cfg->log_user;

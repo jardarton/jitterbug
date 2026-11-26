@@ -82,6 +82,8 @@ struct jbi_api;
 
 struct jb_context {
     jbi_draw_state draw;
+    jbi_draw_state checkpoint_draw;
+    int checkpoint_active;
     jbi_precise_source precise; /* valid when has_precise */
     int has_precise;
     int texture_perspective;    /* jbi_set_texture_mapping */
@@ -183,6 +185,25 @@ void jbi_store_1x(jb_context *ctx, int x, int y, int w, int h, uint16_t *dst);
 
 /* Finish every queued primitive. */
 void jbi_flush(jb_context *ctx);
+
+typedef enum {
+    JBI_CHECKPOINT_OK,
+    JBI_CHECKPOINT_ACTIVE,
+    JBI_CHECKPOINT_UNSUPPORTED,
+    JBI_CHECKPOINT_NO_MEMORY,
+} jbi_checkpoint_result;
+
+/*
+ * One temporary pass through the console core. Begin finishes outstanding
+ * GPU work. Rollback restores the GP0 drawing registers and backend state,
+ * including VRAM. Use core drawing, transfers and scanout during the pass.
+ * The public API manages its own command stream, display and frame state.
+ * Treat raw VRAM pointers as read-only until rollback.
+ * Core configuration setters leave settings as they are during a pass.
+ * Rollback is harmless when no checkpoint is active.
+ */
+jbi_checkpoint_result jbi_checkpoint_begin(jb_context *ctx);
+void jbi_checkpoint_rollback(jb_context *ctx);
 
 /*
  * Internal resolution and threads, VRAM contents kept: scale, dither and

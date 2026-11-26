@@ -93,6 +93,16 @@ struct jbi_backend {
     void (*flush)(jbi_backend *b);
 
     /*
+     * Optional backend checkpoint. Backends without support leave both
+     * operations NULL. Begin finishes queued work and saves
+     * the state needed to undo rendering and transfers. It returns 0 on an
+     * allocation failure. Rollback finishes temporary work and restores
+     * the saved state. The context owns the lifetime and drawing registers.
+     */
+    int (*checkpoint_begin)(jbi_backend *b);
+    void (*checkpoint_rollback)(jbi_backend *b);
+
+    /*
      * The display area as the console's display fetch reads it, at the
      * internal resolution N. The area is w x h pixels at (x, y) in VRAM and
      * wraps at the VRAM edges; w or h <= 0 means 512 x 256 (and 15-bit). h

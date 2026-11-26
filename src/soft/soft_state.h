@@ -24,6 +24,20 @@ enum {
     JBI_SOFT_PALETTE_POOL = 65536,
 };
 
+typedef struct {
+    uint16_t *pixels;
+    uint32_t tiles[JBI_SOFT_TILE_ROWS];
+} jbi_saved_vram;
+
+typedef struct {
+    jbi_saved_vram lo, hi;
+    int active, scale;
+    uint32_t stale[JBI_SOFT_TILE_ROWS];
+    int stale_any;
+    int clut_valid, clut_x, clut_y, clut_n;
+    uint16_t palette[256];
+} jbi_soft_checkpoint;
+
 struct jbi_soft {
     jbi_backend base; /* first: the interface */
 
@@ -66,11 +80,15 @@ struct jbi_soft {
 
     /* The copy's row buffer (transfer.c). */
     uint16_t line[JBI_VRAM_W * JBI_MAX_SCALE];
+
+    jbi_soft_checkpoint checkpoint;
 };
 
 /* soft.c */
 void jbi_soft_submit(jbi_soft *s, const jbi_prim *p);
 void jbi_soft_flush(jbi_soft *s);
+/* Before a transfer writes a rectangle in both VRAMs. */
+void jbi_soft_checkpoint_touch(jbi_soft *s, int x, int y, int w, int h);
 /* Whether the rectangle has stale 1x tiles. */
 int jbi_soft_lowres_stale(const jbi_soft *s, int x, int y, int w, int h);
 /* Writes a 1x pixel block of the scaled VRAM, honouring the mask bits. */

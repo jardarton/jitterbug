@@ -135,6 +135,8 @@ jb_seed_test(gpu_smoke gpu_smoke.c)
 jb_seed_test(gpu_smoke_stub gpu_smoke.c precise_stub.c)
 target_compile_definitions(test_gpu_smoke_stub PRIVATE JB_SMOKE_STUB)
 
+jb_seed_test(checkpoint checkpoint.c)
+
 # seed_rtt: a drawn 15-bit texture sampled above 1x, which the recorded
 # scenes never do (the scaled rasteriser's sub-texel sampling).
 jb_seed_test(seed_rtt seed_rtt.c precise_stub.c)

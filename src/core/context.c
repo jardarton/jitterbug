@@ -63,9 +63,34 @@ void jbi_flush(jb_context *ctx)
     ctx->backend->flush(ctx->backend);
 }
 
+jbi_checkpoint_result jbi_checkpoint_begin(jb_context *ctx)
+{
+    jbi_backend *backend = ctx->backend;
+
+    if (ctx->checkpoint_active)
+        return JBI_CHECKPOINT_ACTIVE;
+    if (backend->checkpoint_begin == NULL || backend->checkpoint_rollback == NULL)
+        return JBI_CHECKPOINT_UNSUPPORTED;
+    if (!backend->checkpoint_begin(backend))
+        return JBI_CHECKPOINT_NO_MEMORY;
+    ctx->checkpoint_draw = ctx->draw;
+    ctx->checkpoint_active = 1;
+    return JBI_CHECKPOINT_OK;
+}
+
+void jbi_checkpoint_rollback(jb_context *ctx)
+{
+    if (!ctx->checkpoint_active)
+        return;
+    ctx->backend->checkpoint_rollback(ctx->backend);
+    ctx->draw = ctx->checkpoint_draw;
+    ctx->checkpoint_active = 0;
+}
+
 int jbi_configure(jb_context *ctx, int scale, int dither, int threads)
 {
-    ctx->scale = ctx->backend->configure(ctx->backend, scale, dither, threads);
+    if (!ctx->checkpoint_active)
+        ctx->scale = ctx->backend->configure(ctx->backend, scale, dither, threads);
     return ctx->scale;
 }
 
@@ -76,6 +101,8 @@ int jbi_threads(const jb_context *ctx)
 
 int jbi_set_threads(jb_context *ctx, int threads)
 {
+    if (ctx->checkpoint_active)
+        return 0;
     return ctx->backend->set_threads(ctx->backend, threads);
 }
 
@@ -86,11 +113,14 @@ int jbi_scale(const jb_context *ctx)
 
 void jbi_set_exact_1x(jb_context *ctx, int exact)
 {
-    ctx->backend->set_exact_1x(ctx->backend, exact);
+    if (!ctx->checkpoint_active)
+        ctx->backend->set_exact_1x(ctx->backend, exact);
 }
 
 void jbi_set_clut_cache(jb_context *ctx, int on)
 {
+    if (ctx->checkpoint_active)
+        return;
     ctx->backend->set_clut_cache(ctx->backend, on != 0);
     ctx->clut_cache = on != 0;
 }
@@ -107,6 +137,8 @@ void jbi_clear_cache(jb_context *ctx)
 
 void jbi_set_texture_mapping(jb_context *ctx, int perspective)
 {
+    if (ctx->checkpoint_active)
+        return;
     ctx->backend->flush(ctx->backend);
     ctx->texture_perspective = perspective != 0;
 }
@@ -118,6 +150,8 @@ int jbi_texture_mapping(const jb_context *ctx)
 
 void jbi_set_precise_source(jb_context *ctx, const jbi_precise_source *src)
 {
+    if (ctx->checkpoint_active)
+        return;
     ctx->has_precise = src != NULL;
     if (src != NULL)
         ctx->precise = *src;

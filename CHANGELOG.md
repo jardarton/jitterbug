@@ -2,6 +2,12 @@
 
 Notable changes to jitterbug. There is no ABI stability guarantee before 1.0.
 
+## 0.1.2 — 2026-11-26
+
+Internal groundwork for future backends; no public API changes.
+
+- **Backend rollback checkpoints ([docs/design.md](docs/design.md)):** the internal backend boundary gains an optional checkpoint that saves the GP0 drawing registers, touched VRAM tiles, stale 1x tiles and the palette cache, and rolls them back after a temporary pass. The software backend implements it; core configuration changes are refused while a checkpoint is active.
+
 ## 0.1.1 — 2026-11-25
 
 Fixes and checks that close the known gaps in 0.1.0; no API changes.

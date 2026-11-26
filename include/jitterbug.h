@@ -60,7 +60,7 @@ extern "C" {
 /* The version. The build reads it from here. No ABI promise before 1.0. */
 #define JB_VERSION_MAJOR 0
 #define JB_VERSION_MINOR 1
-#define JB_VERSION_PATCH 1
+#define JB_VERSION_PATCH 2
 
 #define JB_VERSION_NUMBER(major, minor, patch) (((major) << 16) | ((minor) << 8) | (patch))
 #define JB_VERSION JB_VERSION_NUMBER(JB_VERSION_MAJOR, JB_VERSION_MINOR, JB_VERSION_PATCH)
